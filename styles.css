@@ -1,0 +1,131 @@
+/* Общие стили для попапа */
+#service-levels-popup {
+    font-family: Arial, sans-serif;
+    color: #333;
+}
+
+.draggable-header {
+    background-color: white;
+}
+
+/* Стили для заголовка уровней */
+.level-title {
+    background-color: #f0f0f0;
+    border: none;
+    padding: 10px 20px;
+    margin-top: 10px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.level-title:hover {
+    background-color: #e0e0e0;
+}
+
+/* Стили для контейнера цен */
+.price-container {
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 5px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: fadeInUp 0.45s ease-out;
+}
+
+/* Стили для кнопок заказа */
+.order-button {
+    padding: 10px 20px;
+    background-color: #B69D0DFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.order-button:hover {
+    background-color: #9f890b;
+}
+
+/* Стили для отображения таймера */
+.timer-display {
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    margin-left: 20px;
+}
+
+#service-levels-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    min-width: 35%;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: auto;
+    max-width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+.lowest-price {
+    background-color: #55c251; /* Основной цвет кнопки */
+    transition: background-color 0.3s ease;
+}
+
+.lowest-price:hover {
+    background-color: #4db24a;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* CSS */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#service-levels-popup {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Анимация для новых элементов в попапе */
+.new-element {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Стиль для возможности передвижения попапа */
+.draggable-header {
+    cursor: move;
+    background-color: #f0f0f0;
+    padding: 10px 20px;
+    margin: -20px -20px 20px -20px;
+}
+
