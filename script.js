@@ -181,8 +181,7 @@ function determinePath() {
     // Проверяем, найден ли элемент
     if (textarea) {
         // Получаем значение из textarea
-        const value = textarea;
-        console.log('Едем из', value[0].value, 'в', value[1].value);
+        return Array.from(textarea).map(x => x.value).filter(x => x);
     } else {
         console.log('Элемент не найден');
     }
@@ -379,22 +378,30 @@ async function createOrderDraft(data) {
     return await result.json();
 }
 
-async function getPoint(name) {
+async function determineAddress(name) {
     const userId = await getUserId();
     const headers = _buildHeaders(userId);
-    const body = {
-        action: 'user_input',
-        id: userId,
-        part: name,
-    }
-    const res = fetch(`https://ya-authproxy.taxi.yandex.ru/4.0/persuggest/v1/suggest`, {
+
+    const YMapsCenterPoint = getPinAddress(); // Выступает в роли региона для поиска
+    const res = await fetch(`https://ya-authproxy.taxi.yandex.ru/4.0/persuggest/v1/suggest`, {
         method: "POST",
         headers,
-        body: JSON.stringify({id: userId, name: name}),
+        body: JSON.stringify({
+            action: 'user_input',
+            state: {
+                accuracy: 0, // Пока неизвестно на что именно влияет
+                location: YMapsCenterPoint,
+            },
+            sticky: false,
+            type: 'b',
+            id: userId,
+            part: name,
+            position: YMapsCenterPoint,
+        }),
         credentials: 'include',
         redirect: "follow"
     });
-    console.log((await res).json())
+    return (await res.json()).results[0];
 }
 
 async function commitOrder(orderId) {
@@ -407,16 +414,13 @@ async function commitOrder(orderId) {
         credentials: 'include',
         redirect: "follow"
     });
-    console.log((await res).json())
+    console.log(await res.json())
 }
 
-function getPinAdress() {
-    const ymaps = document.querySelectorAll('ymaps')[0];
-
-    const storeKey = Object.keys(ymaps).find(k => k.startsWith('__reactInternalInstance'));
-
-    console.log(storeKey)
-    console.log(ymaps[storeKey]['return'].memoizedProps.location.center)
+function getPinAddress() {
+    const YMaps = document.querySelectorAll('ymaps')[0];
+    const storeKey = Object.keys(YMaps).find(k => k.startsWith('__reactInternalInstance'));
+    return YMaps[storeKey]['return'].memoizedProps.location.center;
 }
 
 function makePopupDraggable() {
@@ -474,10 +478,17 @@ function makePopupDraggable() {
 }
 
 
+async function processRoute() {
+    const path = determinePath();
+    if (path.length < 2) return;
+
+    for (let i = 0; i < path.length; i++) {
+        console.log(await determineAddress(path[i])) // TODO
+    }
+}
 // Модифицируем интервальный вызов, чтобы включить getCost
 setInterval(() => {
-    getPinAdress();
-    // determinePath();
+    processRoute()
     // getCost()
 }, 2000);
 
