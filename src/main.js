@@ -17,8 +17,11 @@ function createWindow() {
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 
+  const cssPath = path.join(process.resourcesPath, 'app/styles.css');
+  const jsPath = path.join(process.resourcesPath, 'app/script.js');
+
   // Загружаем CSS из файла
-  fs.readFile('styles.css', 'utf8', (err, css) => {
+  fs.readFile(cssPath, 'utf8', (err, css) => {
     if (err) {
       console.error('Failed to read CSS file', err);
     } else {
@@ -36,7 +39,7 @@ function createWindow() {
   // Set an interval to log the localStorage value
   mainWindow.webContents.once('dom-ready', () => {
     // Загружаем скрипт из файла
-    fs.readFile('script.js', 'utf8', (err, data) => {
+    fs.readFile(jsPath, 'utf8', (err, data) => {
       if (err) {
         console.error('Failed to read script file', err);
       } else {

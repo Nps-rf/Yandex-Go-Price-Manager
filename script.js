@@ -2,6 +2,7 @@ const detailsState = new Map();
 let uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
 const timerState = new Map(); // Хранение состояний таймеров
 const offers = {};
+const routeStates = [];
 
 function aggregateUniquePrices(serviceLevels) {
     serviceLevels.forEach(service => {
@@ -93,6 +94,8 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         let levelContainer = contentArea.querySelector(`.level-container[data-level="${level}"]`);
         const profit = prices.length > 1 ? prices[prices.length - 1] - prices[0] : 0;
         let levelTitle;
+        const pricesAvailable = prices.some(price => price);
+        if (!pricesAvailable) return;
         if (!levelContainer) {
             levelContainer = document.createElement('div');
             levelContainer.className = 'level-container';
@@ -113,6 +116,7 @@ function updatePopupContent(popup, uniquePricesByLevel) {
             };
             levelContainer.appendChild(detailsContainer);
         }
+
 
         const detailsContainer = levelContainer.querySelector('.details-container');
         levelTitle = levelTitle || levelContainer.querySelector('.level-title');
@@ -142,15 +146,8 @@ function updatePopupContent(popup, uniquePricesByLevel) {
                         class: level,
                         price: price,
                         offer: offers[level][price],
-                        route: [[
-                            37.9438785683,
-                            55.8231700986
-                        ],
-                            [
-                                37.795923876560096,
-                                55.718891900369215
-                            ]],
                     };
+                    console.log(level, price, offers)
                     alert(`Заказан ${level} с ценой ${price} руб.`);
                     createOrderDraft(data).then(res => {
                         commitOrder(res.orderid);
@@ -252,19 +249,13 @@ function _buildHeaders(userId) {
 
 async function getCost() {
     const userId = await getUserId();
+    const route = (await processRoute()).map(point => point.position);
+
+    if (route.length < 2) return;
 
     // Используем значения a и b для формирования тела запроса
     const body = JSON.stringify({
-        route: [
-            [
-                37.9436745322557,
-                55.8231940498972
-            ],
-            [
-                37.794990707895664,
-                55.71887075633581
-            ]
-        ],
+        route,
         payment: {type: "cash", payment_method_id: "cash"},
         summary_version: 2,
         format_currency: true,
@@ -280,6 +271,36 @@ async function getCost() {
         tariff_requirements: [
             {
                 "class": "econom",
+                "requirements": {
+                    "coupon": ""
+                }
+            },
+            {
+                "class": "business",
+                "requirements": {
+                    "coupon": ""
+                }
+            },
+            {
+                "class": "comfortplus",
+                "requirements": {
+                    "coupon": ""
+                }
+            },
+            {
+                "class": "vip",
+                "requirements": {
+                    "coupon": ""
+                }
+            },
+            {
+                "class": "child_tariff",
+                "requirements": {
+                    "coupon": ""
+                }
+            },
+            {
+                "class": "minivan",
                 "requirements": {
                     "coupon": ""
                 }
@@ -308,26 +329,37 @@ async function getCost() {
     }
 }
 
+// noinspection JSNonASCIINames
+const langClassAlias = {
+    'Эконом': 'econom',
+    'Комфорт': 'business',
+    'Комфорт+': 'comfortplus',
+    'Business': 'vip',
+    'Premier': 'ultimate',
+    'Élite': 'maybach',
+    'Минивэн': 'minivan',
+}
+
 async function createOrderDraft(data) {
-    // Example {
-    //     "route": [
-    //         {
-    //             "short_text": "бульвар Нестерова, 6",
-    //             "geopoint": [
-    //                 37.9436745322557,
-    //                 55.8231940498972
-    //             ],
-    //             "fullname": "Московская область, Балашиха, микрорайон Авиаторов, бульвар Нестерова, 6",
-    //             "type": "address",
-    //             "city": "Балашиха",
-    //             "uri": "ymapsbm1://geo?data=CgoxNTA0MjIzMzc3EpIB0KDQvtGB0YHQuNGPLCDQnNC-0YHQutC-0LLRgdC60LDRjyDQvtCx0LvQsNGB0YLRjCwg0JHQsNC70LDRiNC40YXQsCwg0LzQuNC60YDQvtGA0LDQudC-0L0g0JDQstC40LDRgtC-0YDQvtCyLCDQsdGD0LvRjNCy0LDRgCDQndC10YHRgtC10YDQvtCy0LAsIDYiCg0mxxdCFWVKX0I,"
-    //         }
-    //     ],
-    // }
     const userId = await getUserId();
     const headers = _buildHeaders(userId);
 
     const taxiClass = data.class;
+
+    const route = await processRoute();
+
+    if (route.length < 2) return;
+
+    const buildedRoute = route.map(point => {
+        return {
+            "short_text": point.title.text,
+            "geopoint": point.position,
+            "fullname": point.text,
+            "type": "address",
+            "city": point.city,
+            "uri": point.uri
+        }
+    })
 
     const body = JSON.stringify({
         id: userId,
@@ -340,31 +372,8 @@ async function createOrderDraft(data) {
             type: "cash",
             payment_method_id: "cash"
         },
-        route: [
-            {
-                "short_text": "бульвар Нестерова, 6",
-                "geopoint": [
-                    37.9436745322557,
-                    55.8231940498972
-                ],
-                "fullname": "Московская область, Балашиха, микрорайон Авиаторов, бульвар Нестерова, 6",
-                "type": "address",
-                "city": "Балашиха",
-                "uri": "ymapsbm1://geo?data=CgoxNTA0MjIzMzc3EpIB0KDQvtGB0YHQuNGPLCDQnNC-0YHQutC-0LLRgdC60LDRjyDQvtCx0LvQsNGB0YLRjCwg0JHQsNC70LDRiNC40YXQsCwg0LzQuNC60YDQvtGA0LDQudC-0L0g0JDQstC40LDRgtC-0YDQvtCyLCDQsdGD0LvRjNCy0LDRgCDQndC10YHRgtC10YDQvtCy0LAsIDYiCg0mxxdCFWVKX0I,"
-            },
-            {
-                "short_text": "4-й Вешняковский проезд, 6",
-                "geopoint": [
-                    37.794990707895664,
-                    55.71887075633581
-                ],
-                "fullname": "Москва, 4-й Вешняковский проезд, 6",
-                "type": "address",
-                "city": "Москва",
-                "uri": "ymapsbm1://geo?data=Cgg1NjY4NjA3MBJJ0KDQvtGB0YHQuNGPLCDQnNC-0YHQutCy0LAsIDQt0Lkg0JLQtdGI0L3Rj9C60L7QstGB0LrQuNC5INC_0YDQvtC10LfQtCwgNiIKDQcvF0IVJuBeQg,,"
-            }
-        ],
-        class: ['econom'],
+        route: buildedRoute,
+        class: [langClassAlias[taxiClass] || 'econom'],
     })
 
     const result = await fetch("https://ya-authproxy.taxi.yandex.ru/external/3.0/orderdraft", {
@@ -376,6 +385,33 @@ async function createOrderDraft(data) {
     });
 
     return await result.json();
+}
+
+async function finalSuggest(point) {
+    const userId = await getUserId();
+    const headers = _buildHeaders(userId);
+    const body = JSON.stringify({
+        action: 'finalize',
+        state: {
+            accuracy: 0, // Пока неизвестно на что именно влияет
+            location: point.position,
+            selected_class: 'econom',
+        },
+        sticky: true,
+        type: 'b',
+        id: userId,
+        position: point.position,
+    });
+
+    const res = await fetch(`https://ya-authproxy.taxi.yandex.ru/4.0/persuggest/v1/finalsuggest`, {
+        method: "POST",
+        headers,
+        body,
+        credentials: 'include',
+        redirect: "follow"
+    });
+
+    return (await res.json()).results[0];
 }
 
 async function determineAddress(name) {
@@ -401,7 +437,7 @@ async function determineAddress(name) {
         credentials: 'include',
         redirect: "follow"
     });
-    return (await res.json()).results[0];
+    return await finalSuggest((await res.json()).results[0]);
 }
 
 async function commitOrder(orderId) {
@@ -481,14 +517,26 @@ function makePopupDraggable() {
 async function processRoute() {
     const path = determinePath();
     if (path.length < 2) return;
+    const pathId = path.reduce((prev, next) => `${prev}-${next}`)
+    const stateCheck = routeStates.find(state => state.id === pathId)?.result;
+    if (stateCheck) return stateCheck;
+    const result = [];
 
     for (let i = 0; i < path.length; i++) {
-        console.log(await determineAddress(path[i])) // TODO
+        const res = await determineAddress(path[i])
+        result.push(res);
     }
+
+    routeStates.push({
+        id: pathId,
+        result,
+    });
+    return result;
 }
 // Модифицируем интервальный вызов, чтобы включить getCost
 setInterval(() => {
-    processRoute()
-    // getCost()
-}, 2000);
+    // processRoute()
+    // processRoute().then(console.log)
+    getCost()
+}, 3000);
 
