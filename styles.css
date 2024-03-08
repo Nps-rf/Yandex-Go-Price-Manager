@@ -89,6 +89,16 @@
     background-color: #4db24a;
 }
 
+.close-button {
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+}
+
+.close-button:hover {
+    background-color: #efebeb;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
