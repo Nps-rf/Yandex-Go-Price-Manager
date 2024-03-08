@@ -17,8 +17,8 @@ function createWindow() {
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 
-  const cssPath = path.join(process.resourcesPath, 'app/styles.css');
-  const jsPath = path.join(process.resourcesPath, 'app/script.js');
+  const cssPath = 'styles.css';
+  const jsPath = 'script.js';
 
   // Загружаем CSS из файла
   fs.readFile(cssPath, 'utf8', (err, css) => {
