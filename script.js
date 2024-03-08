@@ -1,8 +1,18 @@
-const detailsState = new Map();
-const uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
-const timerState = new Map(); // Хранение состояний таймеров
-const offers = {};
-const routeStates = [];
+let detailsState = new Map();
+let uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
+let timerState = new Map(); // Хранение состояний таймеров
+let offers = {};
+let routeChanged = false;
+let currentRoute;
+let routeStates = {};
+
+function resetState() {
+    detailsState.clear();
+    uniquePricesByLevel = {};
+    timerState.clear();
+    offers = {};
+    routeChanged = false;
+}
 
 function aggregateUniquePrices(serviceLevels) {
     serviceLevels.forEach(service => {
@@ -65,7 +75,7 @@ function createAndShowPopup(serviceLevels) {
 
         // В функции createAndShowPopup:
         const title = document.createElement('h2');
-        title.textContent = 'Уровни услуг';
+        title.textContent = 'Yandex GO Price Manager';
         title.className = 'draggable-header'; // Добавляем класс для возможности перетаскивания
         popup.appendChild(title);
 
@@ -88,6 +98,12 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         contentArea = document.createElement('div');
         contentArea.className = 'content-area';
         popup.appendChild(contentArea);
+    }
+
+    if (routeChanged) { // При изменении адреса, аннулируем все офферы кек
+        contentArea.innerHTML = '';
+        resetState();
+        return getCost();
     }
 
     Object.entries(uniquePricesByLevel).forEach(([level, prices]) => {
@@ -187,14 +203,14 @@ function updatePopupContent(popup, uniquePricesByLevel) {
 
 
 function determinePath() {
-    const textarea = document.querySelectorAll('textarea.Textarea-Control');
-
+    if (document.querySelector('.Popup2')) return; // это popup отвечающий за выбор точки
+    const textarea = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
     // Проверяем, найден ли элемент
     if (textarea) {
         // Получаем значение из textarea
-        return Array.from(textarea).map(x => x.value).filter(x => x);
+        return textarea.map(x => x.value).filter(x => x);
     } else {
-        console.log('Элемент не найден');
+        console.log('Path not found');
     }
 }
 
@@ -258,14 +274,16 @@ function _buildHeaders(userId) {
     headers.append('X-Csrf-Token', csrfToken.token);
     // headers.append("X-Request-Id", "558721f9-5111-4d7f-a03d-b15dca93386b");
     headers.append('Origin', 'https://taxi.yandex.ru');
-    headers.append('Referer', 'https://taxi.yandex.ru/');
+    headers.append('Referer', 'https://taxi.yandex.ru');
     return headers;
 }
 
 
 async function getCost() {
     const userId = await getUserId();
-    const route = (await processRoute()).map(point => point.position);
+    let route = await processRoute();
+    if (!route) return;
+    route = route.map(point => point.position);
 
     if (route.length < 2) return;
 
@@ -532,9 +550,9 @@ function makePopupDraggable() {
 
 async function processRoute() {
     const path = determinePath();
-    if (path.length < 2) return;
+    if (!path || path?.length < 2) return;
     const pathId = path.reduce((prev, next) => `${prev}-${next}`);
-    const stateCheck = routeStates.find(state => state.id === pathId)?.result;
+    const stateCheck = routeStates[pathId];
     if (stateCheck) return stateCheck;
     const result = [];
 
@@ -543,16 +561,15 @@ async function processRoute() {
         result.push(res);
     }
 
-    routeStates.push({
-        id: pathId,
-        result,
-    });
+    routeStates[pathId] = result;
+    if (pathId !== currentRoute) routeChanged = true;
+    currentRoute = pathId;
     return result;
 }
+
 // Модифицируем интервальный вызов, чтобы включить getCost
 setInterval(() => {
     // processRoute()
     // processRoute().then(console.log)
     getCost();
-}, 3000);
-
+}, 1000);
