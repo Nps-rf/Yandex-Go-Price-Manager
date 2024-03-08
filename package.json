@@ -34,7 +34,8 @@
     "path-browserify": "^1.0.1",
     "style-loader": "^3.3.4",
     "webpack": "^5.90.3",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "eslint": "^8.48.0"
   },
   "keywords": [],
   "author": {
