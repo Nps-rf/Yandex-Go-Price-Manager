@@ -1,5 +1,5 @@
 const detailsState = new Map();
-let uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
+const uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
 const timerState = new Map(); // Хранение состояний таймеров
 const offers = {};
 const routeStates = [];
@@ -22,7 +22,7 @@ function aggregateUniquePrices(serviceLevels) {
 
         if (!timerState.has(timerKey)) {
             // Создаем таймер, если он не существует
-            const endTime = Date.now() + 10 * 60 * 1000; // 10 минут
+            const endTime = Date.now() + 10 * 60 * 1000; // 10 минут, т.к. шындекс выдает офферы лишь на 10 минут
             const timer = {endTime, interval: setInterval(() => updateTimer(timerKey), 1000)};
             timerState.set(timerKey, timer);
         }
@@ -71,7 +71,7 @@ function createAndShowPopup(serviceLevels) {
 
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Закрыть';
-        closeButton.setAttribute('style', 'margin-top: 20px; padding: 10px; cursor: pointer;');
+        closeButton.className = 'close-button';
         closeButton.onclick = () => popup.style.display = 'none';
         popup.appendChild(closeButton);
     }
@@ -81,6 +81,7 @@ function createAndShowPopup(serviceLevels) {
     updatePopupContent(popup, uniquePricesByLevel);
     makePopupDraggable();
 }
+
 function updatePopupContent(popup, uniquePricesByLevel) {
     let contentArea = popup.querySelector('.content-area');
     if (!contentArea) {
@@ -90,7 +91,7 @@ function updatePopupContent(popup, uniquePricesByLevel) {
     }
 
     Object.entries(uniquePricesByLevel).forEach(([level, prices]) => {
-        prices = Array.from(prices).sort((a, b) => a - b); // Сортируем цены
+        prices = Array.from(prices).sort((a, b) => +a - +b); // Сортируем цены
         let levelContainer = contentArea.querySelector(`.level-container[data-level="${level}"]`);
         const profit = prices.length > 1 ? prices[prices.length - 1] - prices[0] : 0;
         let levelTitle;
@@ -117,7 +118,6 @@ function updatePopupContent(popup, uniquePricesByLevel) {
             levelContainer.appendChild(detailsContainer);
         }
 
-
         const detailsContainer = levelContainer.querySelector('.details-container');
         levelTitle = levelTitle || levelContainer.querySelector('.level-title');
         levelTitle.textContent = level + (profit ? ` (Выгода +${profit} руб.)` : '');
@@ -127,32 +127,46 @@ function updatePopupContent(popup, uniquePricesByLevel) {
             if (!priceContainer) {
                 priceContainer = document.createElement('div');
                 priceContainer.className = 'price-container';
-                // Добавьте анимацию непосредственно после создания элемента, но перед его добавлением в DOM
                 priceContainer.style.animation = 'fadeInUp 0.3s ease-out';
-                priceContainer.setAttribute('data-price',  price ? price : 'Недоступно');
-                if (i === 0) {
-                    const priceButton = detailsContainer?.firstChild?.firstChild;
-                    if (priceButton) priceButton.className = priceButton.className.replace(' lowest-price', '');
+                priceContainer.setAttribute('data-price', price ? price : 'Недоступно');
 
-                    detailsContainer.insertBefore(priceContainer, detailsContainer.firstChild);
+                // Находим правильное место для вставки нового элемента
+                let insertBeforeElement = { ind: null, el: null };
+                const allPrices = detailsContainer.querySelectorAll('.price-container');
+                for (let j = 0; j < allPrices.length; j++) {
+                    const currentElementPrice = +allPrices[j].getAttribute('data-price');
+                    if (price < currentElementPrice) {
+                        insertBeforeElement = { ind: i, el: allPrices[j] };
+                        break;
+                    }
                 }
-                else detailsContainer.appendChild(priceContainer);
+
+                if (insertBeforeElement.el) {
+                    if (insertBeforeElement.el.isSameNode(detailsContainer.firstChild)) {
+                        // Убираем у последней наименьшей цены подсветку
+                        detailsContainer.firstChild.firstChild.className = 'order-button';
+                    }
+                    detailsContainer.insertBefore(priceContainer, insertBeforeElement.el);
+                } else {
+                    detailsContainer.appendChild(priceContainer);
+                }
 
                 const orderButton = document.createElement('button');
-                orderButton.className = i === 0 ? 'order-button lowest-price' : 'order-button';
+                orderButton.className = !allPrices.length || insertBeforeElement.ind === 0 ? 'order-button lowest-price' : 'order-button';
                 orderButton.textContent = price ? `Заказать за ${price}` : 'Недоступно в вашем районе';
-                orderButton.onclick = (e) => {
+                orderButton.onclick = () => {
                     const data = {
                         class: level,
                         price: price,
                         offer: offers[level][price],
                     };
-                    console.log(level, price, offers)
+                    console.log(level, price, offers);
                     alert(`Заказан ${level} с ценой ${price} руб.`);
                     createOrderDraft(data).then(res => {
                         commitOrder(res.orderid);
-                    })
+                    });
                 };
+
                 priceContainer.appendChild(orderButton);
 
                 const timerDisplay = document.createElement('span');
@@ -191,12 +205,12 @@ function getIndexedDB() {
     return new Promise((resolve, reject) => {
         const request = window.indexedDB.open('turboapp-taxi', 1);
 
-        request.onerror = (_) => {
+        request.onerror = () => {
             // Обработка ошибок при попытке открыть IndexedDB
             reject(request.error);
         };
 
-        request.onsuccess = (_) => {
+        request.onsuccess = () => {
             // Возвращаем объект базы данных, когда она успешно открыта
             resolve(request.result);
         };
@@ -204,6 +218,8 @@ function getIndexedDB() {
 }
 
 async function getUserId() {
+    // Не бейте если выглядит убого
+    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve, reject) => {
         try {
             const db = await getIndexedDB();
@@ -234,15 +250,15 @@ async function getUserId() {
 
 function _buildHeaders(userId) {
     const headers = new Headers();
-    headers.append("Content-Type", "application/json");
+    headers.append('Content-Type', 'application/json');
     headers.append('X-Yataxi-Userid', userId);
 
     // Используем csrfToken из localStorage, полученный ранее
     const csrfToken = JSON.parse(localStorage.getItem('taxi_csrf_token'));
-    headers.append("X-Csrf-Token", csrfToken.token);
-    headers.append("X-Request-Id", "558721f9-5111-4d7f-a03d-b15dca93386b");
-    headers.append("Origin", "https://taxi.yandex.ru");
-    headers.append("Referer", "https://taxi.yandex.ru/");
+    headers.append('X-Csrf-Token', csrfToken.token);
+    // headers.append("X-Request-Id", "558721f9-5111-4d7f-a03d-b15dca93386b");
+    headers.append('Origin', 'https://taxi.yandex.ru');
+    headers.append('Referer', 'https://taxi.yandex.ru/');
     return headers;
 }
 
@@ -256,53 +272,53 @@ async function getCost() {
     // Используем значения a и b для формирования тела запроса
     const body = JSON.stringify({
         route,
-        payment: {type: "cash", payment_method_id: "cash"},
+        payment: {type: 'cash', payment_method_id: 'cash'},
         summary_version: 2,
         format_currency: true,
         extended_description: true,
         is_lightweight: false,
         id: userId,
         requirements: {
-            coupon: ""
+            coupon: ''
         },
         selected_class: '',
-        supported_markup: "tml-0.1",
+        supported_markup: 'tml-0.1',
         supports_paid_options: true,
         tariff_requirements: [
             {
-                "class": "econom",
-                "requirements": {
-                    "coupon": ""
+                'class': 'econom',
+                'requirements': {
+                    'coupon': ''
                 }
             },
             {
-                "class": "business",
-                "requirements": {
-                    "coupon": ""
+                'class': 'business',
+                'requirements': {
+                    'coupon': ''
                 }
             },
             {
-                "class": "comfortplus",
-                "requirements": {
-                    "coupon": ""
+                'class': 'comfortplus',
+                'requirements': {
+                    'coupon': ''
                 }
             },
             {
-                "class": "vip",
-                "requirements": {
-                    "coupon": ""
+                'class': 'vip',
+                'requirements': {
+                    'coupon': ''
                 }
             },
             {
-                "class": "child_tariff",
-                "requirements": {
-                    "coupon": ""
+                'class': 'child_tariff',
+                'requirements': {
+                    'coupon': ''
                 }
             },
             {
-                "class": "minivan",
-                "requirements": {
-                    "coupon": ""
+                'class': 'minivan',
+                'requirements': {
+                    'coupon': ''
                 }
             }
         ]
@@ -312,16 +328,16 @@ async function getCost() {
     const headers = _buildHeaders(userId);
     // Создаем объект настроек запроса
     const requestOptions = {
-        method: "POST",
+        method: 'POST',
         headers,
         body,
         credentials: 'include',
-        redirect: "follow"
+        redirect: 'follow'
     };
 
     // Отправляем запрос
     try {
-        const response = await fetch("https://ya-authproxy.taxi.yandex.ru/3.0/routestats", requestOptions);
+        const response = await fetch('https://ya-authproxy.taxi.yandex.ru/3.0/routestats', requestOptions);
         const result = await response.json();
         createAndShowPopup(result.service_levels);
     } catch (error) {
@@ -338,7 +354,7 @@ const langClassAlias = {
     'Premier': 'ultimate',
     'Élite': 'maybach',
     'Минивэн': 'minivan',
-}
+};
 
 async function createOrderDraft(data) {
     const userId = await getUserId();
@@ -352,36 +368,36 @@ async function createOrderDraft(data) {
 
     const buildedRoute = route.map(point => {
         return {
-            "short_text": point.title.text,
-            "geopoint": point.position,
-            "fullname": point.text,
-            "type": "address",
-            "city": point.city,
-            "uri": point.uri
-        }
-    })
+            'short_text': point.title.text,
+            'geopoint': point.position,
+            'fullname': point.text,
+            'type': 'address',
+            'city': point.city,
+            'uri': point.uri
+        };
+    });
 
     const body = JSON.stringify({
         id: userId,
         offer: data.offer,
-        requirements: {coupon: ""},
+        requirements: {coupon: ''},
         parks: [],
         dont_sms: false,
         driverclientchat_enabled: true,
         payment: {
-            type: "cash",
-            payment_method_id: "cash"
+            type: 'cash',
+            payment_method_id: 'cash'
         },
         route: buildedRoute,
         class: [langClassAlias[taxiClass] || 'econom'],
-    })
+    });
 
-    const result = await fetch("https://ya-authproxy.taxi.yandex.ru/external/3.0/orderdraft", {
-        method: "POST",
+    const result = await fetch('https://ya-authproxy.taxi.yandex.ru/external/3.0/orderdraft', {
+        method: 'POST',
         headers,
         body,
         credentials: 'include',
-        redirect: "follow"
+        redirect: 'follow'
     });
 
     return await result.json();
@@ -404,11 +420,11 @@ async function finalSuggest(point) {
     });
 
     const res = await fetch(`https://ya-authproxy.taxi.yandex.ru/4.0/persuggest/v1/finalsuggest`, {
-        method: "POST",
+        method: 'POST',
         headers,
         body,
         credentials: 'include',
-        redirect: "follow"
+        redirect: 'follow'
     });
 
     return (await res.json()).results[0];
@@ -420,7 +436,7 @@ async function determineAddress(name) {
 
     const YMapsCenterPoint = getPinAddress(); // Выступает в роли региона для поиска
     const res = await fetch(`https://ya-authproxy.taxi.yandex.ru/4.0/persuggest/v1/suggest`, {
-        method: "POST",
+        method: 'POST',
         headers,
         body: JSON.stringify({
             action: 'user_input',
@@ -435,7 +451,7 @@ async function determineAddress(name) {
             position: YMapsCenterPoint,
         }),
         credentials: 'include',
-        redirect: "follow"
+        redirect: 'follow'
     });
     return await finalSuggest((await res.json()).results[0]);
 }
@@ -444,13 +460,13 @@ async function commitOrder(orderId) {
     const userId = await getUserId();
     const headers = _buildHeaders(userId);
     const res = fetch(`https://ya-authproxy.taxi.yandex.ru/external/3.0/ordercommit`, {
-        method: "POST",
+        method: 'POST',
         headers,
         body: JSON.stringify({id: userId, orderid: orderId}),
         credentials: 'include',
-        redirect: "follow"
+        redirect: 'follow'
     });
-    console.log(await res.json())
+    console.log(await res.json());
 }
 
 function getPinAddress() {
@@ -517,13 +533,13 @@ function makePopupDraggable() {
 async function processRoute() {
     const path = determinePath();
     if (path.length < 2) return;
-    const pathId = path.reduce((prev, next) => `${prev}-${next}`)
+    const pathId = path.reduce((prev, next) => `${prev}-${next}`);
     const stateCheck = routeStates.find(state => state.id === pathId)?.result;
     if (stateCheck) return stateCheck;
     const result = [];
 
     for (let i = 0; i < path.length; i++) {
-        const res = await determineAddress(path[i])
+        const res = await determineAddress(path[i]);
         result.push(res);
     }
 
@@ -537,6 +553,6 @@ async function processRoute() {
 setInterval(() => {
     // processRoute()
     // processRoute().then(console.log)
-    getCost()
+    getCost();
 }, 3000);
 
