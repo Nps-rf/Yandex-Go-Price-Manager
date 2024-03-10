@@ -2,9 +2,9 @@ const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
-  mode: 'production',
+  mode: 'development',
   entry: {
-    injection: './script.js' // Указываем только JS файлы здесь
+    injection: './script.js'
   },
   target: 'electron-main',
   devtool: 'source-map',

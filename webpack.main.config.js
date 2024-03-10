@@ -5,7 +5,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 module.exports = {
     mode: 'production',
     entry: {
-        main: './src/main.js',
+        main: './src/index.js',
         injection: './script.js' // Указываем только JS файлы здесь
     },
     target: 'electron-main',
