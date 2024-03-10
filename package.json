@@ -1,15 +1,15 @@
 {
   "name": "igo",
   "productName": "yandex-go-price-manager",
-  "version": "1.2.1",
-  "description": "My Electron application description",
+  "version": "1.2.2",
+  "description": "Клиент для Яндекс.Такси",
   "main": "dist/main.js",
   "scripts": {
     "start": "electron-forge start",
-    "prestart": "webpack --config webpack.renderer.config.js --mode=development --progress",
+    "prestart": "webpack --config webpack.renderer.config.js --progress",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "prebuild": "webpack --config webpack.main.config.js --mode=development --progress",
+    "prebuild": "webpack --config webpack.main.config.js --progress",
     "build": "electron-builder",
     "publish": "electron-forge publish",
     "lint": "eslint .",
@@ -44,10 +44,13 @@
     "webpack-cli": "^5.1.4",
     "webpack-obfuscator": "^3.5.1"
   },
-  "keywords": ["yandex", "yangex-go"],
-  "author": {
-    "name": "Николай Пикалов",
-    "email": "divine.nikolai@gmail.com"
-  },
-  "license": "MIT"
+  "keywords": [
+    "yandex",
+    "yangex-go"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
+    "@electron-forge/plugin-webpack": "^7.3.0"
+  }
 }
