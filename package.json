@@ -1,51 +1,53 @@
 {
   "name": "igo",
   "productName": "yandex-go-price-manager",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "My Electron application description",
-  "main": "src/main.js",
+  "main": "dist/main.js",
   "scripts": {
     "start": "electron-forge start",
+    "prestart": "webpack --config webpack.renderer.config.js --mode=development --progress",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "electron-packager . yandex-go-price-manager --platform=win32 --arch=x64",
+    "prebuild": "webpack --config webpack.main.config.js --mode=development --progress",
+    "build": "electron-builder",
     "publish": "electron-forge publish",
-    "pack": "electron-packager . --overwrite --icon=assets/icon.ico --out=release-builds --ignore=node_modules --prune=true --asar=true",
-    "lint": "echo \"No linting configured\""
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "build": {
+    "appId": "com.freedom.ygpm",
+    "productName": "YangexGoPriceManager",
+    "win": {
+      "target": "nsis"
+    },
+    "directories": {
+      "output": "build/"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ]
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.3.0",
-    "@electron-forge/maker-deb": "^7.3.0",
-    "@electron-forge/maker-rpm": "^7.3.0",
-    "@electron-forge/maker-squirrel": "^7.3.0",
-    "@electron-forge/maker-zip": "^7.3.0",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
     "@electron-forge/plugin-fuses": "^7.2.0",
-    "@electron-forge/plugin-webpack": "^7.3.0",
     "@electron/fuses": "^1.7.0",
-    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
-    "babel-loader": "^9.1.3",
     "css-loader": "^6.10.0",
     "electron": "^29.0.1",
     "electron-builder": "^24.12.0",
-    "electron-packager": "^17.1.2",
-    "fs-extra": "^11.2.0",
-    "node-loader": "^2.0.0",
+    "eslint": "^8.48.0",
+    "mini-css-extract-plugin": "^2.8.1",
     "path-browserify": "^1.0.1",
-    "style-loader": "^3.3.4",
     "webpack": "^5.90.3",
     "webpack-cli": "^5.1.4",
-    "eslint": "^8.48.0"
+    "webpack-obfuscator": "^3.5.1"
   },
-  "keywords": [],
+  "keywords": ["yandex", "yangex-go"],
   "author": {
     "name": "Николай Пикалов",
-    "email": "n.pikalov@pravo.tech"
+    "email": "divine.nikolai@gmail.com"
   },
-  "license": "MIT",
-  "dependencies": {
-    "crypto-browserify": "^3.12.0",
-    "electron-squirrel-startup": "^1.0.0",
-    "node-polyfill-webpack-plugin": "^3.0.0"
-  }
+  "license": "MIT"
 }

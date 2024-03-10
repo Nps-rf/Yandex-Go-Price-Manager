@@ -1,36 +1,39 @@
-const {resolve} = require("path");
-
-const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+const path = require('path');
+const WebpackObfuscator = require('webpack-obfuscator');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
-    /**
-     * This is the main entry point for your application, it's the first file
-     * that runs in the main process.
-     */
-    plugins: [
-        new NodePolyfillPlugin()
-    ],
-    entry: './src/main.js', // Ваша главная точка входа
+    mode: 'production',
+    entry: {
+        main: './src/main.js',
+        injection: './script.js' // Указываем только JS файлы здесь
+    },
+    target: 'electron-main',
+    devtool: 'source-map',
     output: {
-        path: resolve(__dirname, 'dist'),
-        filename: 'bundle.js', // Итоговый бандл с вашим кодом
+        path: path.resolve(__dirname, 'dist'),
+        filename: '[name].js'
     },
     module: {
         rules: [
             {
-                test: /\.css$/,
-                use: ['style-loader', 'css-loader'],
-            },
-            {
-                test: /\.js$/,
-                exclude: /node_modules/,
+                test: /\.css$/i,
+                use: [MiniCssExtractPlugin.loader, 'css-loader'], // Обработка CSS
             },
         ],
     },
-    target: 'electron-main',
-    resolve: {
-        alias: {
-            '~': resolve(__dirname, 'src'),
-        }
-    }
+    plugins: [
+        new WebpackObfuscator({
+            rotateStringArray: true,
+            deadCodeInjection: true,
+            deadCodeInjectionThreshold: 0.3,
+            numbersToExpressions: true,
+            identifierNamesGenerator: 'hexadecimal',
+            stringArray: true,
+            seed: new Date().getTime()
+        }),
+        new MiniCssExtractPlugin({
+            filename: 'injection.styles.css' // Файл CSS будет создан здесь
+        })
+    ]
 };

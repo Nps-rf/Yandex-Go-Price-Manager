@@ -1,3 +1,5 @@
+import './styles.css';
+
 let detailsState = new Map();
 let uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
 let timerState = new Map(); // Хранение состояний таймеров

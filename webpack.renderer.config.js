@@ -1,13 +1,28 @@
-const rules = require('./webpack.rules');
-
-rules.push({
-  test: /\.css$/,
-  use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
-});
+const path = require('path');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
-  // Put your normal webpack config below here
-  module: {
-    rules,
+  mode: 'production',
+  entry: {
+    injection: './script.js' // Указываем только JS файлы здесь
   },
+  target: 'electron-main',
+  devtool: 'source-map',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].js'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.css$/i,
+        use: [MiniCssExtractPlugin.loader, 'css-loader'], // Обработка CSS
+      },
+    ],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'injection.styles.css' // Файл CSS будет создан здесь
+    })
+  ]
 };
