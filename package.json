@@ -1,7 +1,7 @@
 {
   "name": "ygpm",
   "productName": "yandex-go-price-manager",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Клиент для Яндекс.Такси с возможностью контроля ценообразования",
   "main": "dist/main.js",
   "scripts": {
@@ -52,7 +52,5 @@
     "yandex",
     "yangex-go"
   ],
-  "license": "MIT",
-  "dependencies": {
-  }
+  "license": "MIT"
 }
