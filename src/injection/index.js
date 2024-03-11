@@ -1,21 +1,8 @@
 import './styles.css';
 import * as yandex from './lib/yandex.api.js';
+import State from './store/index.js';
 
-let detailsState = new Map();
-let uniquePricesByLevel = {}; // Глобальный объект для хранения уникальных цен
-let timerState = new Map(); // Хранение состояний таймеров
-let offers = {};
-let routeChanged = false;
-let currentRoute;
-let routeStates = {};
-
-function resetState() {
-    detailsState.clear();
-    uniquePricesByLevel = {};
-    timerState.clear();
-    offers = {};
-    routeChanged = false;
-}
+export const state = new State();
 
 function aggregateUniquePrices(serviceLevels) {
     serviceLevels.forEach(service => {
@@ -23,34 +10,34 @@ function aggregateUniquePrices(serviceLevels) {
         const price = service.max_price_as_decimal;
         const timerKey = `${level}-${price}`;
 
-        if (!uniquePricesByLevel[level]) {
-            uniquePricesByLevel[level] = new Set();
+        if (!state.uniquePricesByLevel[level]) {
+            state.uniquePricesByLevel[level] = new Set();
         }
-        uniquePricesByLevel[level].add(price);
+        state.uniquePricesByLevel[level].add(price);
 
-        if (uniquePricesByLevel[level].has(price)) {
-            offers[level] || (offers[level] = {});
-            offers[level][price] || (offers[level][price] = service.offer);
+        if (state.uniquePricesByLevel[level].has(price)) {
+            state.offers[level] || (state.offers[level] = {});
+            state.offers[level][price] || (state.offers[level][price] = service.offer);
         }
 
-        if (!timerState.has(timerKey)) {
+        if (!state.timerState.has(timerKey)) {
             // Создаем таймер, если он не существует
             const endTime = Date.now() + 10 * 60 * 1000; // 10 минут, т.к. шындекс выдает офферы лишь на 10 минут
             const timer = {endTime, interval: setInterval(() => updateTimer(timerKey), 1000)};
-            timerState.set(timerKey, timer);
+            state.timerState.set(timerKey, timer);
         }
     });
 }
 
 function updateTimer(key) {
-    const timer = timerState.get(key);
+    const timer = state.timerState.get(key);
     if (!timer) return;
 
     const scheduleUpdate = () => {
         const remaining = timer.endTime - Date.now();
         if (remaining <= 0) {
             clearInterval(timer.interval);
-            timerState.delete(key);
+            state.timerState.delete(key);
             const timerDisplay = document.getElementById(key);
             if (timerDisplay) {
                 timerDisplay.textContent = ' Время вышло!';
@@ -91,7 +78,7 @@ function createAndShowPopup(serviceLevels) {
 
     // Обновляем данные об уникальных ценах
     aggregateUniquePrices(serviceLevels);
-    updatePopupContent(popup, uniquePricesByLevel);
+    updatePopupContent(popup, state.uniquePricesByLevel);
     makePopupDraggable();
 }
 
@@ -103,9 +90,9 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         popup.appendChild(contentArea);
     }
 
-    if (routeChanged) { // При изменении адреса, аннулируем все офферы кек
+    if (state.routeChanged) { // При изменении адреса, аннулируем все офферы кек
         contentArea.innerHTML = '';
-        resetState();
+        state.resetState();
         return getCost();
     }
 
@@ -128,11 +115,11 @@ function updatePopupContent(popup, uniquePricesByLevel) {
 
             const detailsContainer = document.createElement('div');
             detailsContainer.className = 'details-container';
-            detailsContainer.style.display = detailsState.get(level) ? 'block' : 'none';
+            detailsContainer.style.display = state.detailsState.get(level) ? 'block' : 'none';
             levelTitle.onclick = () => {
                 const isVisible = detailsContainer.style.display === 'block';
                 detailsContainer.style.display = isVisible ? 'none' : 'block';
-                detailsState.set(level, !isVisible);
+                state.detailsState.set(level, !isVisible);
             };
             levelContainer.appendChild(detailsContainer);
         }
@@ -177,11 +164,11 @@ function updatePopupContent(popup, uniquePricesByLevel) {
                     const data = {
                         class: level,
                         price: price,
-                        offer: offers[level][price],
+                        offer: state.offers[level][price],
                     };
-                    console.log(level, price, offers);
+                    // console.log(level, price, state.offers);
                     alert(`Заказан ${level} с ценой ${price} руб.`);
-                    createOrderDraft(data).then(res => {
+                    yandex.createOrderDraft(data).then(res => {
                         yandex.commitOrder(res.orderid);
                     });
                 };
@@ -204,25 +191,12 @@ function updatePopupContent(popup, uniquePricesByLevel) {
     });
 }
 
-
-function determinePath() {
-    if (document.querySelector('.Popup2')) return; // это popup отвечающий за выбор точки
-    const textarea = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
-    // Проверяем, найден ли элемент
-    if (textarea) {
-        // Получаем значение из textarea
-        return textarea.map(x => x.value).filter(x => x);
-    } else {
-        console.log('Path not found');
-    }
-}
-
 // Предполагаем, что a и b - глобальные переменные, определенные выше
 // Модификация функции determinePath() не требуется, поскольку она уже определена
 
 async function getCost() {
     const userId = await yandex.getUserId();
-    let route = await processRoute();
+    let route = await yandex.processRoute();
     if (!route) return;
     route = route.map(point => point.position);
 
@@ -356,83 +330,6 @@ function makePopupDraggable() {
         // Предотвращаем стандартное перетаскивание и выделение текста
         e.preventDefault();
     });
-}
-
-// noinspection JSNonASCIINames
-const langClassAlias = {
-    'Эконом': 'econom',
-    'Комфорт': 'business',
-    'Комфорт+': 'comfortplus',
-    'Business': 'vip',
-    'Premier': 'ultimate',
-    'Élite': 'maybach',
-    'Минивэн': 'minivan',
-};
-
-export async function createOrderDraft(data) {
-    const userId = await yandex.getUserId();
-    const headers = yandex._buildHeaders(userId);
-
-    const taxiClass = data.class;
-
-    const route = await processRoute();
-
-    if (route.length < 2) return;
-
-    const buildedRoute = route.map(point => {
-        return {
-            'short_text': point.title.text,
-            'geopoint': point.position,
-            'fullname': point.text,
-            'type': 'address',
-            'city': point.city,
-            'uri': point.uri
-        };
-    });
-
-    const body = JSON.stringify({
-        id: userId,
-        offer: data.offer,
-        requirements: {coupon: ''},
-        parks: [],
-        dont_sms: false,
-        driverclientchat_enabled: true,
-        payment: {
-            type: 'cash',
-            payment_method_id: 'cash'
-        },
-        route: buildedRoute,
-        class: [langClassAlias[taxiClass] || 'econom'],
-    });
-
-    const result = await fetch('https://ya-authproxy.taxi.yandex.ru/external/3.0/orderdraft', {
-        method: 'POST',
-        headers,
-        body,
-        credentials: 'include',
-        redirect: 'follow'
-    });
-
-    return await result.json();
-}
-
-async function processRoute() {
-    const path = determinePath();
-    if (!path || path?.length < 2) return;
-    const pathId = path.reduce((prev, next) => `${prev}-${next}`);
-    const stateCheck = routeStates[pathId];
-    if (stateCheck) return stateCheck;
-    const result = [];
-
-    for (let i = 0; i < path.length; i++) {
-        const res = await yandex.determineAddress(path[i]);
-        result.push(res);
-    }
-
-    routeStates[pathId] = result;
-    if (pathId !== currentRoute) routeChanged = true;
-    currentRoute = pathId;
-    return result;
 }
 
 // Модифицируем интервальный вызов, чтобы включить getCost

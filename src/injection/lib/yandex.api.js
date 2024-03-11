@@ -1,3 +1,5 @@
+import { state } from '../index.js';
+
 export function getIndexedDB() {
   return new Promise((resolve, reject) => {
     const request = window.indexedDB.open('turboapp-taxi', 1);
@@ -129,4 +131,93 @@ export function getPinAddress() {
   const YMaps = document.querySelectorAll('ymaps')[0];
   const storeKey = Object.keys(YMaps).find(k => k.startsWith('__reactInternalInstance'));
   return YMaps[storeKey]['return'].memoizedProps.location.center;
+}
+
+// noinspection JSNonASCIINames
+const langClassAlias = {
+  'Эконом': 'econom',
+  'Комфорт': 'business',
+  'Комфорт+': 'comfortplus',
+  'Business': 'vip',
+  'Premier': 'ultimate',
+  'Élite': 'maybach',
+  'Минивэн': 'minivan',
+};
+
+export async function createOrderDraft(data) {
+  const userId = await getUserId();
+  const headers = _buildHeaders(userId);
+
+  const taxiClass = data.class;
+
+  const route = await processRoute();
+
+  if (route.length < 2) return;
+
+  const buildedRoute = route.map(point => {
+    return {
+      'short_text': point.title.text,
+      'geopoint': point.position,
+      'fullname': point.text,
+      'type': 'address',
+      'city': point.city,
+      'uri': point.uri
+    };
+  });
+
+  const body = JSON.stringify({
+    id: userId,
+    offer: data.offer,
+    requirements: {coupon: ''},
+    parks: [],
+    dont_sms: false,
+    driverclientchat_enabled: true,
+    payment: {
+      type: 'cash',
+      payment_method_id: 'cash'
+    },
+    route: buildedRoute,
+    class: [langClassAlias[taxiClass] || 'econom'],
+  });
+
+  const result = await fetch('https://ya-authproxy.taxi.yandex.ru/external/3.0/orderdraft', {
+    method: 'POST',
+    headers,
+    body,
+    credentials: 'include',
+    redirect: 'follow'
+  });
+
+  return await result.json();
+}
+
+export async function processRoute() {
+  const path = determinePath();
+  if (!path || path?.length < 2) return;
+  const pathId = path.reduce((prev, next) => `${prev}-${next}`);
+  const stateCheck = state.routeStates[pathId];
+  if (stateCheck) return stateCheck;
+  const result = [];
+
+  for (let i = 0; i < path.length; i++) {
+    const res = await determineAddress(path[i]);
+    result.push(res);
+  }
+
+  state.routeStates[pathId] = result;
+  if (pathId !== state.currentRoute) state.routeChanged = true;
+  state.currentRoute = pathId;
+  return result;
+}
+
+export function determinePath() {
+  if (document.querySelector('.Popup2')) return; // это popup отвечающий за выбор точки
+  const textarea = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
+  // Проверяем, найден ли элемент
+  if (textarea) {
+    // Получаем значение из textarea
+    return textarea.map(x => x.value).filter(x => x);
+  } else {
+    console.log('Path not found');
+  }
 }
