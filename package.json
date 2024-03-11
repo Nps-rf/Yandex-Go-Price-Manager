@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "electron-forge start",
-    "prestart": "webpack --config webpack.renderer.config.js --progress ",
+    "prestart": "webpack --config webpack.renderer.config.js --progress && SET NODE_ENV=development",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "prebuild": "webpack --config webpack.main.config.js --progress",

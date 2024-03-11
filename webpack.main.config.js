@@ -6,7 +6,7 @@ module.exports = {
     mode: 'production',
     entry: {
         main: './src/index.js',
-        injection: './script.js' // Указываем только JS файлы здесь
+        injection: './src/injection/index.js'
     },
     target: 'electron-main',
     devtool: 'source-map',

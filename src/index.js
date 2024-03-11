@@ -2,20 +2,23 @@ const { app, BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+const isDev = process.env.NODE_ENV === 'development';
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 2560,
-    height: 1440,
+    width: 1920,
+    height: 1080,
+    title: 'Yandex.Go Price Manager',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      devTools: false,
-      // preload: path.join(__dirname, 'dist', 'preload.js')
+      devTools: isDev,
+
     }
   });
 
   mainWindow.loadURL('https://taxi.yandex.ru');
-  // mainWindow.webContents.openDevTools(); // Open the DevTools.
+  isDev && mainWindow.webContents.openDevTools(); // Open the DevTools.
 
 
   // Function to load and execute JavaScript from a file

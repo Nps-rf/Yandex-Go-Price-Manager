@@ -4,7 +4,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 module.exports = {
   mode: 'development',
   entry: {
-    injection: './script.js'
+    injection: './src/injection/index.js'
   },
   target: 'electron-main',
   devtool: 'source-map',
@@ -16,13 +16,13 @@ module.exports = {
     rules: [
       {
         test: /\.css$/i,
-        use: [MiniCssExtractPlugin.loader, 'css-loader'], // Обработка CSS
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
     ],
   },
   plugins: [
     new MiniCssExtractPlugin({
-      filename: 'injection.styles.css' // Файл CSS будет создан здесь
+      filename: 'injection.styles.css'
     })
   ]
 };
