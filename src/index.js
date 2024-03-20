@@ -13,7 +13,6 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       devTools: isDev,
-
     }
   });
 

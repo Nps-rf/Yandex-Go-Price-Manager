@@ -133,7 +133,7 @@ function updatePopupContent(popup, uniquePricesByLevel) {
             if (!priceContainer) {
                 priceContainer = document.createElement('div');
                 priceContainer.className = 'price-container';
-                priceContainer.style.animation = 'fadeInUp 0.3s ease-out';
+                priceContainer.style.animation = 'fadeInUp 0.5s ease-out';
                 priceContainer.setAttribute('data-price', price ? price : 'Недоступно');
 
                 // Находим правильное место для вставки нового элемента
@@ -198,7 +198,7 @@ async function getCost() {
     const userId = await yandex.getUserId();
     let route = await yandex.processRoute();
     if (!route) return;
-    route = route.map(point => point.position);
+    route = route.map(point => point.points[0].geometry);
 
     if (route.length < 2) return;
 
@@ -335,4 +335,4 @@ function makePopupDraggable() {
 // Модифицируем интервальный вызов, чтобы включить getCost
 setInterval(() => {
     getCost();
-}, 1000);
+}, 2000);

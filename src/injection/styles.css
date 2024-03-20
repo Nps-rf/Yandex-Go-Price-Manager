@@ -13,7 +13,7 @@
     text-align: left;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s ease;
+    transition: background-color 0.5s ease;
 }
 
 .level-title:hover {
@@ -40,7 +40,7 @@
     color: white;
     border: none;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.5s ease;
 }
 
 .order-button:hover {
@@ -78,7 +78,7 @@
 
 .lowest-price {
     background-color: #55c251; /* Основной цвет кнопки */
-    transition: background-color 0.3s ease;
+    transition: background-color 0.5s ease;
 }
 
 .lowest-price:hover {

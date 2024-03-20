@@ -1,6 +1,7 @@
 const path = require('path');
 const WebpackObfuscator = require('webpack-obfuscator');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const webpack = require('webpack');
 
 module.exports = {
     mode: 'production',
@@ -33,7 +34,10 @@ module.exports = {
             seed: new Date().getTime()
         }),
         new MiniCssExtractPlugin({
-            filename: 'injection.styles.css' // Файл CSS будет создан здесь
+            filename: 'injection.styles.css'
+        }),
+        new webpack.EnvironmentPlugin({
+            'NODE_ENV': 'production'
         })
     ]
 };

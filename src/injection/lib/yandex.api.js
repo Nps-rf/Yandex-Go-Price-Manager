@@ -85,7 +85,7 @@ export async function finalSuggest(point) {
     redirect: 'follow'
   });
 
-  return (await res.json()).results[0];
+  return (await res.json());
 }
 
 export async function determineAddress(name) {
@@ -156,12 +156,12 @@ export async function createOrderDraft(data) {
 
   const buildedRoute = route.map(point => {
     return {
-      'short_text': point.title.text,
-      'geopoint': point.position,
-      'fullname': point.text,
+      'short_text': point.results[0].title.text,
+      'geopoint': point.points[0].geometry,
+      'fullname': point.results[0].text,
       'type': 'address',
-      'city': point.city,
-      'uri': point.uri
+      'city': point.results[0].city,
+      'uri': point.results[0].uri
     };
   });
 
@@ -203,6 +203,8 @@ export async function processRoute() {
     const res = await determineAddress(path[i]);
     result.push(res);
   }
+
+  console.log(result);
 
   state.routeStates[pathId] = result;
   if (pathId !== state.currentRoute) state.routeChanged = true;
