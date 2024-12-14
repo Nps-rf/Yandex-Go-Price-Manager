@@ -1,8 +1,8 @@
 {
   "name": "ygpm",
   "productName": "yandex-go-price-manager",
-  "version": "1.2.7",
-  "description": "Клиент для Яндекс.Такси с возможностью контроля ценообразования",
+  "version": "1.4.0",
+  "description": "Клиент для Яндекс.Такси с возможностью контроля цен.",
   "main": "dist/main.js",
   "scripts": {
     "start": "electron-forge start",
@@ -33,20 +33,16 @@
     ]
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.3.0",
-    "@electron-forge/plugin-fuses": "^7.3.0",
-    "@electron-forge/plugin-webpack": "^7.3.0",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
-    "@electron/fuses": "^1.7.0",
-    "css-loader": "^6.10.0",
-    "electron": "^29.1.1",
-    "electron-builder": "^24.13.3",
-    "eslint": "^8.48.0",
-    "mini-css-extract-plugin": "^2.8.1",
-    "path-browserify": "^1.0.1",
-    "webpack": "^5.90.3",
-    "webpack-cli": "^5.1.4",
-    "webpack-obfuscator": "^3.5.1"
+    "@electron-forge/cli": "7.6.0",
+    "@electron-forge/plugin-fuses": "7.6.0",
+    "@electron/fuses": "1.8.0",
+    "css-loader": "7.1.2",
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "eslint": "9.17.0",
+    "mini-css-extract-plugin": "2.9.2",
+    "webpack": "5.97.1",
+    "webpack-obfuscator": "3.5.1"
   },
   "keywords": [
     "yandex",
