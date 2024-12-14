@@ -6,6 +6,7 @@ export const state = new State();
 
 // Список такси тарифов
 const TAXI_CLASSES = [
+    'intercity',
     'econom',
     'business',
     'comfortplus',
@@ -14,6 +15,10 @@ const TAXI_CLASSES = [
     'maybach',
     'child_tariff',
     'minivan',
+    'premium_van',
+    'hh_with_ramp',
+    'personal_driver',
+    'combo',
 ];
 
 // Интервал обновления таймеров и стоимости
@@ -234,6 +239,7 @@ function updatePriceContainers(detailsContainer, level, prices) {
     // Сначала создаём или обновляем контейнеры для каждой цены.
     for (let i = 0; i < prices.length; i++) {
         const price = prices[i];
+        if (!price) continue;
         let priceContainer = detailsContainer.querySelector(`.price-container[data-price="${price}"]`);
 
         if (!priceContainer) {
@@ -247,6 +253,7 @@ function updatePriceContainers(detailsContainer, level, prices) {
             insertPriceContainerInOrder(detailsContainer, priceContainer, price);
 
             const orderButton = createOrderButton(level, price);
+            if (!orderButton) continue;
             priceContainer.appendChild(orderButton);
 
             const timerDisplay = document.createElement('span');
@@ -300,7 +307,7 @@ function insertPriceContainerInOrder(detailsContainer, priceContainer, price) {
  * @param {boolean} isLowestPrice
  * @returns {HTMLButtonElement}
  */
-function createOrderButton(level, price, isLowestPrice) {
+function createOrderButton(level, price, isLowestPrice = false) {
     const orderButton = document.createElement('button');
     orderButton.className = isLowestPrice ? 'order-button lowest-price' : 'order-button';
     orderButton.textContent = `Заказать за ${price}`;

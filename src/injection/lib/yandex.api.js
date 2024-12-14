@@ -257,7 +257,9 @@ export function getPinAddress() {
   }
 }
 
+// Алиасы классов
 const langClassAlias = {
+  'Межгород': 'intercity',
   'Эконом': 'econom',
   'Комфорт': 'business',
   'Комфорт+': 'comfortplus',
@@ -265,6 +267,10 @@ const langClassAlias = {
   'Premier': 'ultimate',
   'Élite': 'maybach',
   'Минивэн': 'minivan',
+  'Cruise': 'premium_van',
+  'Специальный': 'hh_with_ramp',
+  'Водитель': 'personal_driver',
+  'Вместе': 'combo',
 };
 
 /**
@@ -281,12 +287,6 @@ export async function processRouteOld() {
       return null;
     }
 
-    const pathId = path.join('-');
-    if (state.routeStates[pathId]) {
-      console.log('[processRoute] Маршрут уже есть в кэше (state.routeStates)', state.routeStates[pathId]);
-      return state.routeStates[pathId];
-    }
-
     const result = [];
     for (let i = 0; i < path.length; i++) {
       console.log(`[processRoute] Обрабатываем точку #${i}:`, path[i]);
@@ -295,14 +295,6 @@ export async function processRouteOld() {
       result.push(address);
     }
 
-    console.log('[processRoute] Итоговый массив результатов по маршруту:', result);
-
-    state.routeStates[pathId] = result;
-    if (pathId !== state.currentRoute) {
-      state.routeChanged = true;
-      console.log('[processRoute] Маршрут изменился, state.routeChanged = true');
-    }
-    state.currentRoute = pathId;
     return result;
   } catch (error) {
     console.error('[processRoute] Ошибка в processRoute:', error);
@@ -329,7 +321,7 @@ export async function createOrderDraft(data) {
       return null;
     }
 
-    const buildedRoute = route.map((point) => ({
+    const builtRoute = route.map((point) => ({
       short_text: point.results[0].title.text,
       geopoint: point.points[0].geometry,
       fullname: point.results[0].text,
@@ -338,7 +330,18 @@ export async function createOrderDraft(data) {
       uri: point.results[0].uri,
     }));
 
-    console.log('[createOrderDraft] Сформированный маршрут для отправки:', buildedRoute);
+    let finedRoute = [];
+    console.log(77777777777777, builtRoute)
+    const points = state.routeStates[state.currentRoute];
+    for (let i = 0; i < builtRoute.length; i++) {
+      const point = points[i].point;
+      finedRoute.push({
+        ...builtRoute[i],
+        geopoint: point,
+      })
+    }
+
+    console.log('[createOrderDraft] Сформированный маршрут для отправки:', finedRoute);
 
     const bodyObj = {
       id: userId,
@@ -351,7 +354,7 @@ export async function createOrderDraft(data) {
         type: 'cash',
         payment_method_id: 'cash',
       },
-      route: buildedRoute,
+      route: finedRoute,
       class: [langClassAlias[taxiClass] || 'econom'],
     };
     const body = JSON.stringify(bodyObj);
