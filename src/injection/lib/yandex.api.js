@@ -458,24 +458,37 @@ export async function processRoute() {
 }
 
 /**
- * Определяет путь из значений textarea.
+ * Определяет путь из значений textarea или мобильной разметки.
+ * @param {boolean} mobile - Указывает, нужно ли обрабатывать мобильную разметку.
  */
-export function determinePath() {
-  console.log('[determinePath] Ищем текстовые поля для маршрута...');
+export function determinePath(mobile = true) {
+  console.log('[determinePath] Определяем маршрут...');
+
+  // Проверяем наличие Popup2
   if (document.querySelector('.Popup2')) {
     console.log('[determinePath] Найден Popup2 - пропускаем определение пути');
     return null;
   }
 
-  const textareas = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
-  console.log('[determinePath] Найдено textarea:', textareas.length);
+  // Для текстовых полей (десктоп)
+  if (!mobile) {
+    const textareas = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
+    console.log('[determinePath] Найдено textarea:', textareas.length);
 
-  if (textareas.length === 0) {
-    console.warn('[determinePath] Textarea не найдены');
-    return null;
+    if (textareas.length === 0) {
+      console.warn('[determinePath] Textarea не найдены');
+      return null;
+    }
+
+    const values = textareas.map((textarea) => textarea.value).filter((value) => value);
+    console.log('[determinePath] Значения из textarea:', values);
+    return values.length > 0 ? values : null;
   }
 
-  const values = textareas.map((textarea) => textarea.value).filter((value) => value);
-  console.log('[determinePath] Значения из textarea:', values);
-  return values.length > 0 ? values : null;
+  // Для мобильной разметки
+  const addresses = Array.from(document.querySelectorAll('div[data-testid="AddressView"]')).map(x => x.innerText.trim());
+
+  console.log('[determinePath] Значения из мобильной разметки:', addresses);
+  return addresses.length > 0 ? addresses : null;
 }
+

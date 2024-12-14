@@ -144,6 +144,17 @@ function createPopupElement() {
     title.className = 'draggable-header';
     popup.appendChild(title);
 
+    // Кнопка сворачивания
+    const minimizeButton = document.createElement('button');
+    minimizeButton.textContent = '—';
+    minimizeButton.className = 'minimize-button';
+    minimizeButton.onclick = () => {
+        popup.style.display = 'none'; // Скрываем popup
+        showMinimizedButton();       // Отображаем кнопку в правом верхнем углу
+    };
+    popup.appendChild(minimizeButton);
+
+    // Кнопка закрытия
     const closeButton = document.createElement('button');
     closeButton.textContent = 'Закрыть';
     closeButton.className = 'close-button';
@@ -152,6 +163,31 @@ function createPopupElement() {
 
     return popup;
 }
+
+/**
+ * Показывает кнопку для восстановления свернутого окна.
+ */
+function showMinimizedButton() {
+    let minimizedButton = document.getElementById('minimized-popup-button');
+
+    if (!minimizedButton) {
+        minimizedButton = document.createElement('button');
+        minimizedButton.id = 'minimized-popup-button';
+        minimizedButton.textContent = 'Менеджер цен';
+        minimizedButton.className = 'minimized-button';
+        minimizedButton.onclick = () => {
+            const popup = document.getElementById('service-levels-popup');
+            if (popup) {
+                popup.style.display = 'flex'; // Показываем popup
+            }
+            minimizedButton.style.display = 'none'; // Скрываем кнопку
+        };
+        document.body.appendChild(minimizedButton);
+    }
+
+    minimizedButton.style.display = 'block'; // Показываем кнопку
+}
+
 
 /**
  * Обновляет содержимое всплывающего окна с ценами.
