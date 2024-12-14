@@ -4,84 +4,156 @@ import State from './store/index.js';
 
 export const state = new State();
 
+// Список такси тарифов
+const TAXI_CLASSES = [
+    'econom',
+    'business',
+    'comfortplus',
+    'vip',
+    'ultimate',
+    'maybach',
+    'child_tariff',
+    'minivan',
+];
+
+// Интервал обновления таймеров и стоимости
+const TIMERS_UPDATE_INTERVAL = 1000;
+const COST_UPDATE_INTERVAL = 2000;
+// Время жизни таймера (10 минут - эмпирическое значение (как правило, по прошествии этого времени offer истекает))
+const TIMER_DURATION = 10 * 60 * 1000;
+
+/**
+ * Фильтрует сервисы, оставляя только такси.
+ * @param {Array} serviceLevels - уровни сервиса
+ * @returns {Array} - список тарифов такси
+ */
+function filterTaxiServices(serviceLevels) {
+    return serviceLevels.filter((service) => TAXI_CLASSES.includes(service.class));
+}
+
+/**
+ * Собирает уникальные цены по каждому уровню сервиса, обновляет состояние
+ * и устанавливает таймеры для этих цен (если еще не установлены).
+ * @param {Array} serviceLevels - уровни сервиса
+ */
 function aggregateUniquePrices(serviceLevels) {
-    serviceLevels.forEach(service => {
-        const level = service.name;
-        const price = service.max_price_as_decimal;
+    for (const service of serviceLevels) {
+        const { name: level, max_price_as_decimal: price, offer } = service;
         const timerKey = `${level}-${price}`;
 
+        // Инициализация структуры для уникальных цен по уровню
         if (!state.uniquePricesByLevel[level]) {
             state.uniquePricesByLevel[level] = new Set();
         }
         state.uniquePricesByLevel[level].add(price);
 
-        if (state.uniquePricesByLevel[level].has(price)) {
-            state.offers[level] || (state.offers[level] = {});
-            state.offers[level][price] || (state.offers[level][price] = service.offer);
+        // Сохраняем предложение для уровня и цены
+        if (!state.offers[level]) {
+            state.offers[level] = {};
+        }
+        if (!state.offers[level][price]) {
+            state.offers[level][price] = offer;
         }
 
+        // Создаем таймер для каждой уникальной цены, если его еще нет
         if (!state.timerState.has(timerKey)) {
-            // Создаем таймер, если он не существует
-            const endTime = Date.now() + 10 * 60 * 1000; // 10 минут, т.к. шындекс выдает офферы лишь на 10 минут
-            const timer = {endTime, interval: setInterval(() => updateTimer(timerKey), 1000)};
-            state.timerState.set(timerKey, timer);
+            const endTime = Date.now() + TIMER_DURATION;
+            state.timerState.set(timerKey, { endTime });
+        }
+    }
+}
+
+/**
+ * Обновляет отображение всех таймеров.
+ */
+function updateAllTimers() {
+    const now = Date.now();
+    state.timerState.forEach((timer, key) => {
+        const remaining = timer.endTime - now;
+        const timerDisplay = document.getElementById(key);
+
+        if (remaining <= 0) {
+            // Время вышло
+            state.timerState.delete(key);
+
+            // Из key извлекаем уровень и цену
+            const [expiredLevel, expiredPrice] = key.split('-');
+
+            // Удаляем цену из состояния
+            if (state.uniquePricesByLevel[expiredLevel]) {
+                state.uniquePricesByLevel[expiredLevel].delete(expiredPrice);
+                // Если в офферах была эта цена, удаляем её
+                if (state.offers[expiredLevel] && state.offers[expiredLevel][expiredPrice]) {
+                    delete state.offers[expiredLevel][expiredPrice];
+                }
+            }
+
+            // Удаляем DOM-элемент цены
+            const priceContainer = document.querySelector(`.price-container[data-level="${expiredLevel}"][data-price="${expiredPrice}"]`);
+            if (priceContainer) {
+                priceContainer.remove();
+            }
+
+            return;
+        }
+
+        // Обновляем отображение таймера
+        if (timerDisplay) {
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            timerDisplay.textContent = ` Осталось ${minutes}:${seconds < 10 ? '0' : ''}${seconds} мин.`;
         }
     });
 }
 
-function updateTimer(key) {
-    const timer = state.timerState.get(key);
-    if (!timer) return;
-
-    const scheduleUpdate = () => {
-        const remaining = timer.endTime - Date.now();
-        if (remaining <= 0) {
-            clearInterval(timer.interval);
-            state.timerState.delete(key);
-            const timerDisplay = document.getElementById(key);
-            if (timerDisplay) {
-                timerDisplay.textContent = ' Время вышло!';
-            }
-        } else {
-            const minutes = Math.floor(remaining / 60000);
-            const seconds = ((remaining % 60000) / 1000).toFixed(0);
-            const timerDisplay = document.getElementById(key);
-            if (timerDisplay) {
-                timerDisplay.textContent = ` Осталось ${minutes}:${seconds < 10 ? '0' : ''}${seconds} мин.`;
-            }
-            setTimeout(scheduleUpdate, 1000); // Рекурсивный вызов?
-        }
-    };
-
-    scheduleUpdate(); // Первоначальный вызов
-}
-
+/**
+ * Создает и отображает всплывающее окно с уровнями сервиса.
+ * @param {Array} serviceLevels - уровни сервиса
+ */
 function createAndShowPopup(serviceLevels) {
+    const taxiServiceLevels = filterTaxiServices(serviceLevels);
     let popup = document.getElementById('service-levels-popup');
+
     if (!popup) {
-        popup = document.createElement('div');
-        popup.id = 'service-levels-popup';
+        popup = createPopupElement();
         document.body.appendChild(popup);
-
-        // В функции createAndShowPopup:
-        const title = document.createElement('h2');
-        title.textContent = 'Yandex GO Price Manager';
-        title.className = 'draggable-header'; // Добавляем класс для возможности перетаскивания
-        popup.appendChild(title);
-
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'Закрыть';
-        closeButton.className = 'close-button';
-        closeButton.onclick = () => popup.style.display = 'none';
-        popup.appendChild(closeButton);
     }
 
     // Обновляем данные об уникальных ценах
-    aggregateUniquePrices(serviceLevels);
+    aggregateUniquePrices(taxiServiceLevels);
+
     updatePopupContent(popup, state.uniquePricesByLevel);
     makePopupDraggable();
 }
 
+/**
+ * Создает DOM-элемент всплывающего окна.
+ * @returns {HTMLElement} popup
+ */
+function createPopupElement() {
+    const popup = document.createElement('div');
+    popup.id = 'service-levels-popup';
+
+    const title = document.createElement('h2');
+    title.textContent = 'Yandex GO Price Manager';
+    title.className = 'draggable-header';
+    popup.appendChild(title);
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Закрыть';
+    closeButton.className = 'close-button';
+    closeButton.onclick = () => (popup.style.display = 'none');
+    popup.appendChild(closeButton);
+
+    return popup;
+}
+
+/**
+ * Обновляет содержимое всплывающего окна с ценами.
+ * При изменении маршрута сбрасывает состояние.
+ * @param {HTMLElement} popup
+ * @param {Object} uniquePricesByLevel
+ */
 function updatePopupContent(popup, uniquePricesByLevel) {
     let contentArea = popup.querySelector('.content-area');
     if (!contentArea) {
@@ -90,249 +162,267 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         popup.appendChild(contentArea);
     }
 
-    if (state.routeChanged) { // При изменении адреса, аннулируем все офферы кек
+    // При изменении маршрута сбрасываем состояние
+    if (state.routeChanged) {
         contentArea.innerHTML = '';
         state.resetState();
-        return getCost();
+        state.routeChanged = false;
+        return;
     }
 
-    Object.entries(uniquePricesByLevel).forEach(([level, prices]) => {
-        prices = Array.from(prices).sort((a, b) => +a - +b); // Сортируем цены
-        let levelContainer = contentArea.querySelector(`.level-container[data-level="${level}"]`);
+    // Отображаем информацию для каждого уровня
+    for (const [level, pricesSet] of Object.entries(uniquePricesByLevel)) {
+        const prices = Array.from(pricesSet).sort((a, b) => +a - +b);
+        if (prices.length === 0) continue;
+
+        // Рассчитать выгоду (разница между минимальной и максимальной ценой)
         const profit = prices.length > 1 ? prices[prices.length - 1] - prices[0] : 0;
-        let levelTitle;
-        const pricesAvailable = prices.some(price => price);
-        if (!pricesAvailable) return;
-        if (!levelContainer) {
-            levelContainer = document.createElement('div');
-            levelContainer.className = 'level-container';
-            levelContainer.setAttribute('data-level', level);
-            contentArea.appendChild(levelContainer);
-
-            levelTitle = document.createElement('button');
-            levelTitle.className = 'level-title';
-            levelContainer.appendChild(levelTitle);
-
-            const detailsContainer = document.createElement('div');
-            detailsContainer.className = 'details-container';
-            detailsContainer.style.display = state.detailsState.get(level) ? 'block' : 'none';
-            levelTitle.onclick = () => {
-                const isVisible = detailsContainer.style.display === 'block';
-                detailsContainer.style.display = isVisible ? 'none' : 'block';
-                state.detailsState.set(level, !isVisible);
-            };
-            levelContainer.appendChild(detailsContainer);
-        }
-
-        const detailsContainer = levelContainer.querySelector('.details-container');
-        levelTitle = levelTitle || levelContainer.querySelector('.level-title');
-        levelTitle.textContent = level + (profit ? ` (Выгода +${profit} руб.)` : '');
-        for (let i = 0; i < prices.length; i++) {
-            const price = prices[i];
-            let priceContainer = detailsContainer.querySelector(`.price-container[data-price="${price}"]`);
-            if (!priceContainer) {
-                priceContainer = document.createElement('div');
-                priceContainer.className = 'price-container';
-                priceContainer.style.animation = 'fadeInUp 0.5s ease-out';
-                priceContainer.setAttribute('data-price', price ? price : 'Недоступно');
-
-                // Находим правильное место для вставки нового элемента
-                let insertBeforeElement = { ind: null, el: null };
-                const allPrices = detailsContainer.querySelectorAll('.price-container');
-                for (let j = 0; j < allPrices.length; j++) {
-                    const currentElementPrice = +allPrices[j].getAttribute('data-price');
-                    if (price < currentElementPrice) {
-                        insertBeforeElement = { ind: i, el: allPrices[j] };
-                        break;
-                    }
-                }
-
-                if (insertBeforeElement.el) {
-                    if (insertBeforeElement.el.isSameNode(detailsContainer.firstChild)) {
-                        // Убираем у последней наименьшей цены подсветку
-                        detailsContainer.firstChild.firstChild.className = 'order-button';
-                    }
-                    detailsContainer.insertBefore(priceContainer, insertBeforeElement.el);
-                } else {
-                    detailsContainer.appendChild(priceContainer);
-                }
-
-                const orderButton = document.createElement('button');
-                orderButton.className = !allPrices.length || insertBeforeElement.ind === 0 ? 'order-button lowest-price' : 'order-button';
-                orderButton.textContent = price ? `Заказать за ${price}` : 'Недоступно в вашем районе';
-                orderButton.onclick = () => {
-                    const data = {
-                        class: level,
-                        price: price,
-                        offer: state.offers[level][price],
-                    };
-                    // console.log(level, price, state.offers);
-                    alert(`Заказан ${level} с ценой ${price} руб.`);
-                    yandex.createOrderDraft(data).then(res => {
-                        yandex.commitOrder(res.orderid);
-                    });
-                };
-
-                priceContainer.appendChild(orderButton);
-
-                const timerDisplay = document.createElement('span');
-                timerDisplay.className = 'timer-display';
-                priceContainer.appendChild(timerDisplay);
-            }
-
-            // Обновляем отображение таймера, используя существующий элемент, если он есть
-            const timerKey = `${level}-${price}`;
-            const timerDisplay = priceContainer.querySelector('.timer-display');
-            if (timerDisplay) {
-                timerDisplay.id = timerKey; // Убедитесь, что ID обновлен, если он используется для поиска
-                updateTimer(timerKey); // Обновляем таймер без пересоздания элемента
-            }
-        }
-    });
+        updateLevelContainer(contentArea, level, prices, profit);
+    }
 }
 
-// Предполагаем, что a и b - глобальные переменные, определенные выше
-// Модификация функции determinePath() не требуется, поскольку она уже определена
+/**
+ * Обновляет или создает контейнер для конкретного уровня.
+ * @param {HTMLElement} contentArea
+ * @param {string} level
+ * @param {Array<number>} prices
+ * @param {number} profit
+ */
+function updateLevelContainer(contentArea, level, prices, profit) {
+    let levelContainer = contentArea.querySelector(`.level-container[data-level="${level}"]`);
+    const profitText = profit ? ` (Выгода +${profit} руб.)` : '';
 
-async function getCost() {
-    const userId = await yandex.getUserId();
-    let route = await yandex.processRoute();
-    if (!route) return;
-    route = route.map(point => point.points[0].geometry);
+    if (!levelContainer) {
+        levelContainer = document.createElement('div');
+        levelContainer.className = 'level-container';
+        levelContainer.setAttribute('data-level', level);
+        contentArea.appendChild(levelContainer);
 
-    if (route.length < 2) return;
+        const levelTitle = document.createElement('button');
+        levelTitle.className = 'level-title';
+        levelTitle.textContent = `${level}${profitText}`;
+        levelContainer.appendChild(levelTitle);
 
-    // Используем значения a и b для формирования тела запроса
-    const body = JSON.stringify({
-        route,
-        payment: {type: 'cash', payment_method_id: 'cash'},
-        summary_version: 2,
-        format_currency: true,
-        extended_description: true,
-        is_lightweight: false,
-        id: userId,
-        requirements: {
-            coupon: ''
-        },
-        selected_class: '',
-        supported_markup: 'tml-0.1',
-        supports_paid_options: true,
-        tariff_requirements: [
-            {
-                'class': 'econom',
-                'requirements': {
-                    'coupon': ''
-                }
-            },
-            {
-                'class': 'business',
-                'requirements': {
-                    'coupon': ''
-                }
-            },
-            {
-                'class': 'comfortplus',
-                'requirements': {
-                    'coupon': ''
-                }
-            },
-            {
-                'class': 'vip',
-                'requirements': {
-                    'coupon': ''
-                }
-            },
-            {
-                'class': 'child_tariff',
-                'requirements': {
-                    'coupon': ''
-                }
-            },
-            {
-                'class': 'minivan',
-                'requirements': {
-                    'coupon': ''
-                }
-            }
-        ]
-        // Остальные параметры оставляем без изменений
+        const detailsContainer = document.createElement('div');
+        detailsContainer.className = 'details-container';
+        detailsContainer.style.display = state.detailsState.get(level) ? 'block' : 'none';
+
+        levelTitle.onclick = () => {
+            const isVisible = detailsContainer.style.display === 'block';
+            detailsContainer.style.display = isVisible ? 'none' : 'block';
+            state.detailsState.set(level, !isVisible);
+        };
+
+        levelContainer.appendChild(detailsContainer);
+    } else {
+        // Если контейнер уже есть, обновляем заголовок при изменении выгоды
+        const levelTitle = levelContainer.querySelector('.level-title');
+        if (levelTitle) {
+            levelTitle.textContent = `${level}${profitText}`;
+        }
+    }
+
+    const detailsContainer = levelContainer.querySelector('.details-container');
+    updatePriceContainers(detailsContainer, level, prices);
+}
+
+/**
+ * Обновляет или создает контейнеры для каждой цены.
+ * Добавлен data-level для удобного удаления.
+ */
+function updatePriceContainers(detailsContainer, level, prices) {
+    // Сначала создаём или обновляем контейнеры для каждой цены.
+    for (let i = 0; i < prices.length; i++) {
+        const price = prices[i];
+        let priceContainer = detailsContainer.querySelector(`.price-container[data-price="${price}"]`);
+
+        if (!priceContainer) {
+            priceContainer = document.createElement('div');
+            priceContainer.className = 'price-container';
+            priceContainer.style.animation = 'fadeInUp 0.5s ease-out';
+            priceContainer.setAttribute('data-price', price);
+            // Добавляем data-level
+            priceContainer.setAttribute('data-level', level);
+
+            insertPriceContainerInOrder(detailsContainer, priceContainer, price);
+
+            const orderButton = createOrderButton(level, price);
+            priceContainer.appendChild(orderButton);
+
+            const timerDisplay = document.createElement('span');
+            timerDisplay.className = 'timer-display';
+            timerDisplay.id = `${level}-${price}`;
+            priceContainer.appendChild(timerDisplay);
+        }
+    }
+
+    // После создания всех контейнеров снимаем подсветку "lowest-price" со всех кнопок
+    const allOrderButtons = detailsContainer.querySelectorAll('.order-button');
+    allOrderButtons.forEach((btn) => {
+        btn.classList.remove('lowest-price');
     });
 
-    const headers = yandex._buildHeaders(userId);
-    // Создаем объект настроек запроса
-    const requestOptions = {
-        method: 'POST',
-        headers,
-        body,
-        credentials: 'include',
-        redirect: 'follow'
-    };
+    // Применяем "lowest-price" только к самой низкой цене, если есть цены
+    if (prices.length > 0) {
+        const lowestPrice = prices[0];
+        const lowestPriceContainer = detailsContainer.querySelector(`.price-container[data-price="${lowestPrice}"]`);
+        if (lowestPriceContainer) {
+            const lowestOrderButton = lowestPriceContainer.querySelector('.order-button');
+            if (lowestOrderButton) {
+                lowestOrderButton.classList.add('lowest-price');
+            }
+        }
+    }
+}
 
-    // Отправляем запрос
+
+/**
+ * Вставляет контейнер цены в отсортированном порядке.
+ * @param {HTMLElement} detailsContainer
+ * @param {HTMLElement} priceContainer
+ * @param {number} price
+ */
+function insertPriceContainerInOrder(detailsContainer, priceContainer, price) {
+    const existingPrices = Array.from(detailsContainer.querySelectorAll('.price-container'));
+    const insertIndex = existingPrices.findIndex((el) => +el.getAttribute('data-price') > price);
+
+    if (insertIndex !== -1) {
+        detailsContainer.insertBefore(priceContainer, existingPrices[insertIndex]);
+    } else {
+        detailsContainer.appendChild(priceContainer);
+    }
+}
+
+/**
+ * Создает кнопку заказа.
+ * @param {string} level
+ * @param {number} price
+ * @param {boolean} isLowestPrice
+ * @returns {HTMLButtonElement}
+ */
+function createOrderButton(level, price, isLowestPrice) {
+    const orderButton = document.createElement('button');
+    orderButton.className = isLowestPrice ? 'order-button lowest-price' : 'order-button';
+    orderButton.textContent = `Заказать за ${price}`;
+    orderButton.onclick = async () => {
+        alert(`Заказан ${level} с ценой ${price} руб.`);
+        const data = {
+            class: level,
+            price: price,
+            offer: state.offers[level][price],
+        };
+        const res = await yandex.createOrderDraft(data);
+        yandex.commitOrder(res.orderid);
+    };
+    return orderButton;
+}
+
+/**
+ * Получает стоимость маршрута и обновляет интерфейс.
+ */
+async function getCost() {
     try {
-        const response = await fetch('https://ya-authproxy.taxi.yandex.ru/3.0/routestats', requestOptions);
+        const userId = await yandex.getUserId();
+        let route = await yandex.processRoute();
+
+        if (!route || route.length < 2) return;
+        route = route.map((point) => point.point);
+
+        const body = buildRequestBody(route, userId);
+        const headers = yandex.buildHeaders(userId);
+
+        const response = await fetch('https://ya-authproxy.taxi.yandex.ru/3.0/routestats', {
+            method: 'POST',
+            headers,
+            body,
+            credentials: 'include',
+            redirect: 'follow',
+        });
+
         const result = await response.json();
+
+        if (state.routeChanged) {
+            state.resetState();
+            state.routeChanged = false;
+        }
+
         createAndShowPopup(result.service_levels);
     } catch (error) {
         console.error('Ошибка при получении стоимости:', error);
     }
 }
 
+/**
+ * Формирует тело запроса для получения стоимости.
+ * @param {Array} route
+ * @param {string} userId
+ * @returns {string} Тело запроса в формате JSON
+ */
+function buildRequestBody(route, userId) {
+    return JSON.stringify({
+        route,
+        payment: { type: 'cash', payment_method_id: 'cash' },
+        summary_version: 2,
+        format_currency: true,
+        extended_description: true,
+        is_lightweight: false,
+        id: userId,
+        requirements: { coupon: '' },
+        selected_class: '',
+        supported_markup: 'tml-0.1',
+        supports_paid_options: true,
+        tariff_requirements: TAXI_CLASSES.map((tariff) => ({
+            class: tariff,
+            requirements: { coupon: '' },
+        })),
+    });
+}
+
+/**
+ * Делает всплывающее окно перетаскиваемым.
+ */
 function makePopupDraggable() {
     const popup = document.getElementById('service-levels-popup');
-    if (!popup) return; // Если попап не найден, выходим из функции
+    if (!popup) return;
 
-    let isDragging = false;
-    let startX, startY; // Координаты курсора в момент начала перетаскивания
-    let origX, origY; // Начальные координаты попапа
-
-    const onMouseMove = function(e) {
-        if (!isDragging) return;
-
-        // Вычисляем новые координаты попапа на основе разницы между текущим положением курсора и начальным
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-
-        // Обновляем позицию попапа, прибавляя смещение к оригинальной позиции
-        popup.style.left = `${origX + deltaX}px`;
-        popup.style.top = `${origY + deltaY}px`;
-    };
-
-    const onMouseUp = function() {
-        isDragging = false;
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-    };
-
-    const header = popup.querySelector('h2'); // Используем заголовок h2 как часть, за которую можно перетаскивать
+    const header = popup.querySelector('h2');
     if (!header) {
-        console.error('Draggable element not found.');
+        console.error('Draggable element (header) not found.');
         return;
     }
 
-    header.style.cursor = 'move'; // Меняем курсор для индикации возможности перетаскивания
+    header.style.cursor = 'move';
 
-    header.addEventListener('mousedown', function(e) {
+    let isDragging = false;
+    let startX, startY, origX, origY;
+
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        popup.style.left = `${origX + deltaX}px`;
+        popup.style.top = `${origY + deltaY}px`;
+    }
+
+    function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+
+    header.addEventListener('mousedown', (e) => {
         isDragging = true;
-
-        // Запоминаем начальное положение курсора
         startX = e.clientX;
         startY = e.clientY;
-
-        // Сохраняем начальные координаты попапа
         origX = popup.offsetLeft;
         origY = popup.offsetTop;
 
-        // Добавляем обработчики событий перемещения и отпускания мыши
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
-
-        // Предотвращаем стандартное перетаскивание и выделение текста
         e.preventDefault();
     });
 }
 
-// Модифицируем интервальный вызов, чтобы включить getCost
-setInterval(() => {
-    getCost();
-}, 2000);
+setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
+
+setInterval(getCost, COST_UPDATE_INTERVAL);
