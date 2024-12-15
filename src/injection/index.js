@@ -354,7 +354,8 @@ function createOrderButton(level, price, isLowestPrice = false) {
             price: price,
             offer: state.offers[level][price],
         };
-        const res = await yandex.createOrderDraft(data);
+        const isMobile = window.matchMedia('(max-width: 640px)').matches;
+        const res = await yandex.createOrderDraft(data, isMobile);
         yandex.commitOrder(res.orderid);
     };
     return orderButton;
@@ -371,6 +372,12 @@ async function getCost() {
         if (!route || route.length < 2) return;
         route = route.map((point) => point.point);
 
+        // Проверяем изменился ли маршрут
+        if (JSON.stringify(route) !== JSON.stringify(state.lastRoute)) {
+            state.routeChanged = true;   // Устанавливаем флаг, что маршрут изменён
+            state.lastRoute = route;     // Запоминаем текущий маршрут
+        }
+
         const body = buildRequestBody(route, userId);
         const headers = yandex.buildHeaders(userId);
 
@@ -384,16 +391,13 @@ async function getCost() {
 
         const result = await response.json();
 
-        if (state.routeChanged) {
-            state.resetState();
-            state.routeChanged = false;
-        }
-
+        // Если маршрут изменён, в updatePopupContent произойдёт сброс
         createAndShowPopup(result.service_levels);
     } catch (error) {
         console.error('Ошибка при получении стоимости:', error);
     }
 }
+
 
 /**
  * Формирует тело запроса для получения стоимости.
@@ -466,6 +470,6 @@ function makePopupDraggable() {
     });
 }
 
-setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
-
-setInterval(getCost, COST_UPDATE_INTERVAL);
+// setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
+//
+// setInterval(getCost, COST_UPDATE_INTERVAL);

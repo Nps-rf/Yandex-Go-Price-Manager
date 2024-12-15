@@ -276,10 +276,10 @@ const langClassAlias = {
 /**
  * Обрабатывает маршрут.
  */
-export async function processRouteOld() {
+export async function processRouteOld(isMobile=false) {
   console.log('[processRoute] Начинаем обработку маршрута...');
   try {
-    const path = determinePath();
+    const path = determinePath(isMobile);
     console.log('[processRoute] Определенный путь из textarea:', path);
 
     if (!path || path.length < 2) {
@@ -305,14 +305,14 @@ export async function processRouteOld() {
 /**
  * Создает черновик заказа.
  */
-export async function createOrderDraft(data) {
+export async function createOrderDraft(data, isMobile=false) {
   console.log('[createOrderDraft] Создаем черновик заказа для данных:', data);
   try {
     const userId = await getUserId();
     const headers = buildHeaders(userId);
 
     const taxiClass = data.class;
-    const route = await processRouteOld();
+    const route = await processRouteOld(isMobile);
 
     console.log('[createOrderDraft] Обработанный маршрут:', route);
 
@@ -459,19 +459,16 @@ export async function processRoute() {
 
 /**
  * Определяет путь из значений textarea или мобильной разметки.
- * @param {boolean} mobile - Указывает, нужно ли обрабатывать мобильную разметку.
+ * @param {boolean} isMobile - Указывает, нужно ли обрабатывать мобильную разметку.
  */
-export function determinePath(mobile = true) {
-  console.log('[determinePath] Определяем маршрут...');
+export function determinePath(isMobile = false) {
 
-  // Проверяем наличие Popup2
   if (document.querySelector('.Popup2')) {
-    console.log('[determinePath] Найден Popup2 - пропускаем определение пути');
     return null;
   }
 
   // Для текстовых полей (десктоп)
-  if (!mobile) {
+  if (!isMobile) {
     const textareas = Array.from(document.querySelectorAll('textarea.Textarea-Control'));
     console.log('[determinePath] Найдено textarea:', textareas.length);
 
