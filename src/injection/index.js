@@ -21,38 +21,24 @@ const TAXI_CLASSES = [
     'combo',
 ];
 
-// Интервал обновления таймеров и стоимости
 const TIMERS_UPDATE_INTERVAL = 1000;
 const COST_UPDATE_INTERVAL = 2000;
-// Время жизни таймера (10 минут - эмпирическое значение (как правило, по прошествии этого времени offer истекает))
-const TIMER_DURATION = 10 * 60 * 1000;
+const TIMER_DURATION = 10 * 60 * 1000; // 10 минут
 
-/**
- * Фильтрует сервисы, оставляя только такси.
- * @param {Array} serviceLevels - уровни сервиса
- * @returns {Array} - список тарифов такси
- */
 function filterTaxiServices(serviceLevels) {
     return serviceLevels.filter(service => TAXI_CLASSES.includes(service.class));
 }
 
-/**
- * Собирает уникальные цены по каждому уровню сервиса, обновляет состояние
- * и устанавливает таймеры для этих цен (если еще не установлены).
- * @param {Array} serviceLevels - уровни сервиса
- */
 function aggregateUniquePrices(serviceLevels) {
     for (const service of serviceLevels) {
         const { name: level, max_price_as_decimal: price, offer } = service;
         const timerKey = `${level}-${price}`;
 
-        // Инициализация структуры для уникальных цен по уровню
         if (!state.uniquePricesByLevel[level]) {
             state.uniquePricesByLevel[level] = new Set();
         }
         state.uniquePricesByLevel[level].add(price);
 
-        // Сохраняем предложение для уровня и цены
         if (!state.offers[level]) {
             state.offers[level] = {};
         }
@@ -60,7 +46,6 @@ function aggregateUniquePrices(serviceLevels) {
             state.offers[level][price] = offer;
         }
 
-        // Создаем таймер для каждой уникальной цены, если его еще нет
         if (!state.timerState.has(timerKey)) {
             const endTime = Date.now() + TIMER_DURATION;
             state.timerState.set(timerKey, { endTime });
@@ -68,9 +53,6 @@ function aggregateUniquePrices(serviceLevels) {
     }
 }
 
-/**
- * Обновляет отображение всех таймеров.
- */
 function updateAllTimers() {
     const now = Date.now();
     state.timerState.forEach((timer, key) => {
@@ -78,22 +60,15 @@ function updateAllTimers() {
         const timerDisplay = document.getElementById(key);
 
         if (remaining <= 0) {
-            // Время вышло
             state.timerState.delete(key);
-
-            // Из key извлекаем уровень и цену
             const [expiredLevel, expiredPrice] = key.split('-');
-
-            // Удаляем цену из состояния
             if (state.uniquePricesByLevel[expiredLevel]) {
                 state.uniquePricesByLevel[expiredLevel].delete(expiredPrice);
-                // Если в офферах была эта цена, удаляем её
                 if (state.offers[expiredLevel] && state.offers[expiredLevel][expiredPrice]) {
                     delete state.offers[expiredLevel][expiredPrice];
                 }
             }
 
-            // Удаляем DOM-элемент цены
             const priceContainer = document.querySelector(`.price-container[data-level="${expiredLevel}"][data-price="${expiredPrice}"]`);
             if (priceContainer) {
                 priceContainer.remove();
@@ -102,20 +77,15 @@ function updateAllTimers() {
             return;
         }
 
-        // Обновляем отображение таймера
         if (timerDisplay) {
             const minutes = Math.floor(remaining / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
-            timerDisplay.textContent = ` Осталось ${minutes}:${seconds < 10 ? '0' : ''}${seconds} мин.`;
+            timerDisplay.textContent = `Осталось ${minutes}:${seconds < 10 ? '0' : ''}${seconds} мин.`;
         }
     });
 }
 
-/**
- * Создает и отображает всплывающее окно с уровнями сервиса.
- * @param {Array} serviceLevels - уровни сервиса
- */
-function createAndShowPopup(serviceLevels) {
+function createAndShowPopup(serviceLevels, advanceWaitingTime) {
     const taxiServiceLevels = filterTaxiServices(serviceLevels);
     let popup = document.getElementById('service-levels-popup');
 
@@ -124,17 +94,18 @@ function createAndShowPopup(serviceLevels) {
         document.body.appendChild(popup);
     }
 
-    // Обновляем данные об уникальных ценах
     aggregateUniquePrices(taxiServiceLevels);
+
+    if (!state.waitingTimesByLevel) state.waitingTimesByLevel = {};
+    for (const service of taxiServiceLevels) {
+        const level = service.name;
+        state.waitingTimesByLevel[level] = service.estimated_waiting?.message || `~${advanceWaitingTime}`;
+    }
 
     updatePopupContent(popup, state.uniquePricesByLevel);
     makePopupDraggable();
 }
 
-/**
- * Создает DOM-элемент всплывающего окна.
- * @returns {HTMLElement} popup
- */
 function createPopupElement() {
     const popup = document.createElement('div');
     popup.id = 'service-levels-popup';
@@ -144,22 +115,18 @@ function createPopupElement() {
     title.className = 'draggable-header';
     popup.appendChild(title);
 
-    // Кнопка сворачивания
     const minimizeButton = document.createElement('button');
     minimizeButton.textContent = '—';
     minimizeButton.className = 'minimize-button';
     minimizeButton.onclick = () => {
-        popup.style.display = 'none'; // Скрываем popup
-        showMinimizedButton(); // Отображаем кнопку в правом верхнем углу
+        popup.style.display = 'none';
+        showMinimizedButton();
     };
     popup.appendChild(minimizeButton);
 
     return popup;
 }
 
-/**
- * Показывает кнопку для восстановления свернутого окна.
- */
 function showMinimizedButton() {
     let minimizedButton = document.getElementById('minimized-popup-button');
 
@@ -171,23 +138,16 @@ function showMinimizedButton() {
         minimizedButton.onclick = () => {
             const popup = document.getElementById('service-levels-popup');
             if (popup) {
-                popup.style.display = 'flex'; // Показываем popup
+                popup.style.display = 'flex';
             }
-            minimizedButton.style.display = 'none'; // Скрываем кнопку
+            minimizedButton.style.display = 'none';
         };
         document.body.appendChild(minimizedButton);
     }
 
-    minimizedButton.style.display = 'block'; // Показываем кнопку
+    minimizedButton.style.display = 'block';
 }
 
-
-/**
- * Обновляет содержимое всплывающего окна с ценами.
- * При изменении маршрута сбрасывает состояние.
- * @param {HTMLElement} popup
- * @param {Object} uniquePricesByLevel
- */
 function updatePopupContent(popup, uniquePricesByLevel) {
     let contentArea = popup.querySelector('.content-area');
     if (!contentArea) {
@@ -196,7 +156,6 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         popup.appendChild(contentArea);
     }
 
-    // При изменении маршрута сбрасываем состояние
     if (state.routeChanged) {
         contentArea.innerHTML = '';
         state.resetState();
@@ -204,27 +163,28 @@ function updatePopupContent(popup, uniquePricesByLevel) {
         return;
     }
 
-    // Отображаем информацию для каждого уровня
     for (const [level, pricesSet] of Object.entries(uniquePricesByLevel)) {
         const prices = Array.from(pricesSet).sort((a, b) => +a - +b);
         if (prices.length === 0) continue;
-
-        // Рассчитать выгоду (разница между минимальной и максимальной ценой)
         const profit = prices.length > 1 ? prices[prices.length - 1] - prices[0] : 0;
         updateLevelContainer(contentArea, level, prices, profit);
     }
 }
 
-/**
- * Обновляет или создает контейнер для конкретного уровня.
- * @param {HTMLElement} contentArea
- * @param {string} level
- * @param {Array<number>} prices
- * @param {number} profit
- */
 function updateLevelContainer(contentArea, level, prices, profit) {
     let levelContainer = contentArea.querySelector(`.level-container[data-level="${level}"]`);
-    const profitText = profit ? ` (Выгода +${profit} руб.)` : '';
+
+    const waitingMessage = state.waitingTimesByLevel && state.waitingTimesByLevel[level] ? state.waitingTimesByLevel[level] : '';
+
+    const extras = [];
+    if (profit > 0) {
+        extras.push(`Выгода +${profit} руб.`);
+    }
+    if (waitingMessage) {
+        extras.push(waitingMessage);
+    }
+
+    const extrasText = extras.length > 0 ? ` (${extras.join(', ')})` : '';
 
     if (!levelContainer) {
         levelContainer = document.createElement('div');
@@ -234,7 +194,7 @@ function updateLevelContainer(contentArea, level, prices, profit) {
 
         const levelTitle = document.createElement('button');
         levelTitle.className = 'level-title';
-        levelTitle.textContent = `${level}${profitText}`;
+        levelTitle.textContent = `${level}${extrasText}`;
         levelContainer.appendChild(levelTitle);
 
         const detailsContainer = document.createElement('div');
@@ -249,10 +209,9 @@ function updateLevelContainer(contentArea, level, prices, profit) {
 
         levelContainer.appendChild(detailsContainer);
     } else {
-        // Если контейнер уже есть, обновляем заголовок при изменении выгоды
         const levelTitle = levelContainer.querySelector('.level-title');
         if (levelTitle) {
-            levelTitle.textContent = `${level}${profitText}`;
+            levelTitle.textContent = `${level}${extrasText}`;
         }
     }
 
@@ -260,12 +219,8 @@ function updateLevelContainer(contentArea, level, prices, profit) {
     updatePriceContainers(detailsContainer, level, prices);
 }
 
-/**
- * Обновляет или создает контейнеры для каждой цены.
- * Добавлен data-level для удобного удаления.
- */
+
 function updatePriceContainers(detailsContainer, level, prices) {
-    // Сначала создаём или обновляем контейнеры для каждой цены.
     for (let i = 0; i < prices.length; i++) {
         const price = prices[i];
         if (!price) continue;
@@ -276,7 +231,6 @@ function updatePriceContainers(detailsContainer, level, prices) {
             priceContainer.className = 'price-container';
             priceContainer.style.animation = 'fadeInUp 0.5s ease-out';
             priceContainer.setAttribute('data-price', price);
-            // Добавляем data-level
             priceContainer.setAttribute('data-level', level);
 
             insertPriceContainerInOrder(detailsContainer, priceContainer, price);
@@ -292,50 +246,27 @@ function updatePriceContainers(detailsContainer, level, prices) {
         }
     }
 
-    // После создания всех контейнеров снимаем подсветку "lowest-price" со всех кнопок
     const allOrderButtons = detailsContainer.querySelectorAll('.order-button');
-    allOrderButtons.forEach(btn => {
-        btn.classList.remove('lowest-price');
-    });
+    allOrderButtons.forEach(btn => btn.classList.remove('lowest-price'));
 
-    // Применяем "lowest-price" только к самой низкой цене, если есть цены
     if (prices.length > 0) {
         const lowestPrice = prices[0];
         const lowestPriceContainer = detailsContainer.querySelector(`.price-container[data-price="${lowestPrice}"]`);
         if (lowestPriceContainer) {
             const lowestOrderButton = lowestPriceContainer.querySelector('.order-button');
-            if (lowestOrderButton) {
-                lowestOrderButton.classList.add('lowest-price');
-            }
+            if (lowestOrderButton) lowestOrderButton.classList.add('lowest-price');
         }
     }
 }
 
-
-/**
- * Вставляет контейнер цены в отсортированном порядке.
- * @param {HTMLElement} detailsContainer
- * @param {HTMLElement} priceContainer
- * @param {number} price
- */
 function insertPriceContainerInOrder(detailsContainer, priceContainer, price) {
     const existingPrices = Array.from(detailsContainer.querySelectorAll('.price-container'));
     const insertIndex = existingPrices.findIndex(el => +el.getAttribute('data-price') > price);
 
-    if (insertIndex !== -1) {
-        detailsContainer.insertBefore(priceContainer, existingPrices[insertIndex]);
-    } else {
-        detailsContainer.appendChild(priceContainer);
-    }
+    if (insertIndex !== -1) detailsContainer.insertBefore(priceContainer, existingPrices[insertIndex]);
+    else detailsContainer.appendChild(priceContainer);
 }
 
-/**
- * Создает кнопку заказа.
- * @param {string} level
- * @param {number} price
- * @param {boolean} isLowestPrice
- * @returns {HTMLButtonElement}
- */
 function createOrderButton(level, price, isLowestPrice = false) {
     const orderButton = document.createElement('button');
     orderButton.className = isLowestPrice ? 'order-button lowest-price' : 'order-button';
@@ -354,9 +285,6 @@ function createOrderButton(level, price, isLowestPrice = false) {
     return orderButton;
 }
 
-/**
- * Получает стоимость маршрута и обновляет интерфейс.
- */
 async function getCost() {
     try {
         const userId = await yandex.getUserId();
@@ -365,10 +293,9 @@ async function getCost() {
         if (!route || route.length < 2) return;
         route = route.map(point => point.point);
 
-        // Проверяем изменился ли маршрут
         if (JSON.stringify(route) !== JSON.stringify(state.lastRoute)) {
-            state.routeChanged = true; // Устанавливаем флаг, что маршрут изменён
-            state.lastRoute = route; // Запоминаем текущий маршрут
+            state.routeChanged = true;
+            state.lastRoute = route;
         }
 
         const body = buildRequestBody(route, userId);
@@ -383,21 +310,12 @@ async function getCost() {
         });
 
         const result = await response.json();
-
-        // Если маршрут изменён, в updatePopupContent произойдёт сброс
-        createAndShowPopup(result.service_levels);
+        createAndShowPopup(result.service_levels, result.time);
     } catch (error) {
         console.error('Ошибка при получении стоимости:', error);
     }
 }
 
-
-/**
- * Формирует тело запроса для получения стоимости.
- * @param {Array} route
- * @param {string} userId
- * @returns {string} Тело запроса в формате JSON
- */
 function buildRequestBody(route, userId) {
     return JSON.stringify({
         route,
@@ -418,9 +336,6 @@ function buildRequestBody(route, userId) {
     });
 }
 
-/**
- * Делает всплывающее окно перетаскиваемым.
- */
 function makePopupDraggable() {
     const popup = document.getElementById('service-levels-popup');
     if (!popup) return;
@@ -464,5 +379,4 @@ function makePopupDraggable() {
 }
 
 setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
-
 setInterval(getCost, COST_UPDATE_INTERVAL);
