@@ -122,13 +122,13 @@ export async function getZeroSuggest(latitude, longitude) {
     const headers = buildHeaders(userId);
 
     const bodyObj = {
-      "type": "b",
-      "client_id": "turboapp-taxi",
-      "state": {
-        "accuracy": 0,
-        "location": [longitude, latitude]
+      'type': 'b',
+      'client_id': 'turboapp-taxi',
+      'state': {
+        'accuracy': 0,
+        'location': [longitude, latitude]
       },
-      "position": [longitude, latitude]
+      'position': [longitude, latitude]
     };
     const body = JSON.stringify(bodyObj);
 
@@ -246,7 +246,7 @@ export function getPinAddress() {
   }
 
   const yMaps = yMapsElements[0];
-  const storeKey = Object.keys(yMaps).find((k) => k.startsWith('__reactInternalInstance'));
+  const storeKey = Object.keys(yMaps).find(k => k.startsWith('__reactInternalInstance'));
   if (storeKey && yMaps[storeKey]?.return?.memoizedProps?.location?.center) {
     const center = yMaps[storeKey].return.memoizedProps.location.center;
     console.log('[getPinAddress] Найдена точка центра карты:', center);
@@ -276,7 +276,7 @@ const langClassAlias = {
 /**
  * Обрабатывает маршрут.
  */
-export async function processRouteOld(isMobile=false) {
+export async function processRouteOld(isMobile = false) {
   console.log('[processRoute] Начинаем обработку маршрута...');
   try {
     const path = determinePath(isMobile);
@@ -305,7 +305,7 @@ export async function processRouteOld(isMobile=false) {
 /**
  * Создает черновик заказа.
  */
-export async function createOrderDraft(data, isMobile=false) {
+export async function createOrderDraft(data, isMobile = false) {
   console.log('[createOrderDraft] Создаем черновик заказа для данных:', data);
   try {
     const userId = await getUserId();
@@ -321,7 +321,7 @@ export async function createOrderDraft(data, isMobile=false) {
       return null;
     }
 
-    const builtRoute = route.map((point) => ({
+    const builtRoute = route.map(point => ({
       short_text: point.results[0].title.text,
       geopoint: point.points[0].geometry,
       fullname: point.results[0].text,
@@ -331,14 +331,14 @@ export async function createOrderDraft(data, isMobile=false) {
     }));
 
     let finedRoute = [];
-    console.log(77777777777777, builtRoute)
+    console.log(77777777777777, builtRoute);
     const points = state.routeStates[state.currentRoute];
     for (let i = 0; i < builtRoute.length; i++) {
       const point = points[i].point;
       finedRoute.push({
         ...builtRoute[i],
         geopoint: point,
-      })
+      });
     }
 
     console.log('[createOrderDraft] Сформированный маршрут для отправки:', finedRoute);
@@ -477,7 +477,7 @@ export function determinePath(isMobile = false) {
       return null;
     }
 
-    const values = textareas.map((textarea) => textarea.value).filter((value) => value);
+    const values = textareas.map(textarea => textarea.value).filter(value => value);
     console.log('[determinePath] Значения из textarea:', values);
     return values.length > 0 ? values : null;
   }

@@ -33,7 +33,7 @@ const TIMER_DURATION = 10 * 60 * 1000;
  * @returns {Array} - список тарифов такси
  */
 function filterTaxiServices(serviceLevels) {
-    return serviceLevels.filter((service) => TAXI_CLASSES.includes(service.class));
+    return serviceLevels.filter(service => TAXI_CLASSES.includes(service.class));
 }
 
 /**
@@ -150,16 +150,9 @@ function createPopupElement() {
     minimizeButton.className = 'minimize-button';
     minimizeButton.onclick = () => {
         popup.style.display = 'none'; // Скрываем popup
-        showMinimizedButton();       // Отображаем кнопку в правом верхнем углу
+        showMinimizedButton(); // Отображаем кнопку в правом верхнем углу
     };
     popup.appendChild(minimizeButton);
-
-    // Кнопка закрытия
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Закрыть';
-    closeButton.className = 'close-button';
-    closeButton.onclick = () => (popup.style.display = 'none');
-    popup.appendChild(closeButton);
 
     return popup;
 }
@@ -301,7 +294,7 @@ function updatePriceContainers(detailsContainer, level, prices) {
 
     // После создания всех контейнеров снимаем подсветку "lowest-price" со всех кнопок
     const allOrderButtons = detailsContainer.querySelectorAll('.order-button');
-    allOrderButtons.forEach((btn) => {
+    allOrderButtons.forEach(btn => {
         btn.classList.remove('lowest-price');
     });
 
@@ -327,7 +320,7 @@ function updatePriceContainers(detailsContainer, level, prices) {
  */
 function insertPriceContainerInOrder(detailsContainer, priceContainer, price) {
     const existingPrices = Array.from(detailsContainer.querySelectorAll('.price-container'));
-    const insertIndex = existingPrices.findIndex((el) => +el.getAttribute('data-price') > price);
+    const insertIndex = existingPrices.findIndex(el => +el.getAttribute('data-price') > price);
 
     if (insertIndex !== -1) {
         detailsContainer.insertBefore(priceContainer, existingPrices[insertIndex]);
@@ -370,12 +363,12 @@ async function getCost() {
         let route = await yandex.processRoute();
 
         if (!route || route.length < 2) return;
-        route = route.map((point) => point.point);
+        route = route.map(point => point.point);
 
         // Проверяем изменился ли маршрут
         if (JSON.stringify(route) !== JSON.stringify(state.lastRoute)) {
-            state.routeChanged = true;   // Устанавливаем флаг, что маршрут изменён
-            state.lastRoute = route;     // Запоминаем текущий маршрут
+            state.routeChanged = true; // Устанавливаем флаг, что маршрут изменён
+            state.lastRoute = route; // Запоминаем текущий маршрут
         }
 
         const body = buildRequestBody(route, userId);
@@ -418,7 +411,7 @@ function buildRequestBody(route, userId) {
         selected_class: '',
         supported_markup: 'tml-0.1',
         supports_paid_options: true,
-        tariff_requirements: TAXI_CLASSES.map((tariff) => ({
+        tariff_requirements: TAXI_CLASSES.map(tariff => ({
             class: tariff,
             requirements: { coupon: '' },
         })),
@@ -457,7 +450,7 @@ function makePopupDraggable() {
         document.removeEventListener('mouseup', onMouseUp);
     }
 
-    header.addEventListener('mousedown', (e) => {
+    header.addEventListener('mousedown', e => {
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
@@ -470,6 +463,6 @@ function makePopupDraggable() {
     });
 }
 
-// setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
-//
-// setInterval(getCost, COST_UPDATE_INTERVAL);
+setInterval(updateAllTimers, TIMERS_UPDATE_INTERVAL);
+
+setInterval(getCost, COST_UPDATE_INTERVAL);

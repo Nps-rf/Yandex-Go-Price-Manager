@@ -1,7 +1,7 @@
 {
   "name": "ygpm",
   "productName": "yandex-go-price-manager",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Клиент для Яндекс.Такси с возможностью контроля цен.",
   "main": "dist/main.js",
   "scripts": {
@@ -41,7 +41,7 @@
     "css-loader": "7.1.2",
     "electron": "33.2.1",
     "electron-builder": "25.1.8",
-    "eslint": "9.17.0",
+    "eslint": "8.56.0",
     "mini-css-extract-plugin": "2.9.2",
     "webpack": "5.97.1",
     "webpack-cli": "^5.1.4",
